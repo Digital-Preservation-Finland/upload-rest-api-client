@@ -59,16 +59,16 @@ def main():
     """Upload files and generate the file metadata"""
     host, user, password = _parse_conf_file()
     auth = HTTPBasicAuth(user, password)
-    files_api = "filestorage/api/v1/files/"
-    metadata_api = "filestorage/api/v1/metadata/"
+    files_api = "%s/filestorage/api/v1/files" % host
+    metadata_api = "%s/filestorage/api/v1/metadata" % host
     upload_package = _read_command_line_args()
     upload_checksum = _md5_digest(upload_package)
 
     # Upload the package
     with open(upload_package, "rb") as upload_file:
         response = requests.post(
-            files_api,
-            input_stream=upload_file,
+            "%s/upload.zip" % files_api,
+            data=upload_file,
             auth=auth
         )
         response.raise_for_status()
@@ -79,14 +79,21 @@ def main():
     print("Uploaded '%s'" % upload_package)
 
     # Generate file metadata
-    response = requests.post("%s*" % metadata_api, auth=auth)
+    response = requests.post("%s/*" % metadata_api, auth=auth)
     response.raise_for_status()
 
     print("Generated file metadata\n")
+    print_format = "%10s    %50s    %45s    %32s"
+    print(print_format % (
+        "parent_dir",
+        "file_path",
+        "identifier",
+        "checksum_value"
+    ))
     for _file_md in response.json()["metax_response"]["success"]:
-        print(
+        print(print_format % (
+            _file_md["object"]["parent_directory"]["id"],
             _file_md["object"]["file_path"],
             _file_md["object"]["identifier"],
-            _file_md["object"]["checksum_value"],
-            "parent_dir_id=%s" % _file_md["object"]["parent_directory"]["id"]
-        )
+            _file_md["object"]["checksum_value"]
+        ))
