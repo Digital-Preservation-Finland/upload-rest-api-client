@@ -15,7 +15,7 @@ Install upload-rest-api-client in a virtual environment::
 
 Add your credentials to the created configuration file :code:`~/.upload.cfg`::
 
-    nano ~/.upload-cfg
+    nano ~/.upload.cfg
 
 Usage
 ~~~~~
