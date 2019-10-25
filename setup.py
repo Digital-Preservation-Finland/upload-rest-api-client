@@ -11,11 +11,12 @@ def main():
         include_package_data=True,
         version=get_version(),
         install_requires=[
-            "requests"
+            "requests",
+            "argcomplete"
         ],
         entry_points={
             "console_scripts": [
-                "upload = upload_rest_api_client.client:main"
+                "upload-client = upload_rest_api_client.client:main"
             ]
         }
     )

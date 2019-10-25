@@ -24,4 +24,4 @@ Usage
 upload-rest-api-client can be used to send tar or zip archives. If you want to
 upload package :code:`package.zip`, simply run::
 
-    upload package.zip
+    upload-client upload package.zip

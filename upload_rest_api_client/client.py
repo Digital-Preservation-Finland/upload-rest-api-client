@@ -1,12 +1,13 @@
 """upload-rest-api-client"""
 import os
-import sys
 import configparser
+import argparse
 import tarfile
 import zipfile
 import hashlib
 
 import requests
+import argcomplete
 from requests.auth import HTTPBasicAuth
 
 
@@ -43,29 +44,47 @@ def _parse_conf_file():
     )
 
 
-def _read_command_line_args():
-    """Check that the package is either a zipfile or a tarfile"""
-    if len(sys.argv) == 1:
-        raise ValueError("Upload package not defined")
+def _parse_args():
+    """Parse command line arguments."""
+    # Base parser
+    parser = argparse.ArgumentParser(
+        description="Client for accessing pre-ingest file storage."
+    )
+    subparsers = parser.add_subparsers(title="command")
 
-    fpath = sys.argv[-1]
+    # Upload parser
+    upload_parser = subparsers.add_parser(
+        "upload", help="upload package to the pre-ingest file storage"
+    )
+    upload_parser.add_argument(
+        "filepath",
+        help="path to the uploaded tar or zip archive"
+    )
+    upload_parser.set_defaults(func=_upload)
+
+    # Setup bash auto completion
+    argcomplete.autocomplete(parser)
+
+    return parser.parse_args()
+
+
+def _upload(args):
+    """Upload tar or zip archive to the pre-ingest file storage and generate
+    Metax metadata.
+    """
+    # Check that the provided file is either a zip or tar archive
+    fpath = args.filepath
     if not tarfile.is_tarfile(fpath) and not zipfile.is_zipfile(fpath):
         raise ValueError("Unsupported file: '%s'" % fpath)
 
-    return fpath
-
-
-def main():
-    """Upload files and generate the file metadata"""
     host, user, password = _parse_conf_file()
     auth = HTTPBasicAuth(user, password)
     files_api = "%s/filestorage/api/v1/files" % host
     metadata_api = "%s/filestorage/api/v1/metadata" % host
-    upload_package = _read_command_line_args()
-    upload_checksum = _md5_digest(upload_package)
+    file_checksum = _md5_digest(fpath)
 
     # Upload the package
-    with open(upload_package, "rb") as upload_file:
+    with open(fpath, "rb") as upload_file:
         response = requests.post(
             "%s/upload.zip" % files_api,
             data=upload_file,
@@ -73,13 +92,16 @@ def main():
         )
         response.raise_for_status()
 
-    if response.json()["md5"] != upload_checksum:
+    if response.json()["md5"] != file_checksum:
         raise DataIntegrityError("Checksums do not match")
 
-    print("Uploaded '%s'" % upload_package)
+    print("Uploaded '%s'" % fpath)
 
     # Generate file metadata
-    response = requests.post("%s/*" % metadata_api, auth=auth)
+    response = requests.post(
+        "%s/*" % metadata_api,
+        auth=auth
+    )
     response.raise_for_status()
 
     print("Generated file metadata\n")
@@ -97,3 +119,13 @@ def main():
             _file_md["object"]["identifier"],
             _file_md["object"]["checksum_value"]
         ))
+
+
+def main():
+    """Parse command line arguments and run the chosen function."""
+    args = _parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
