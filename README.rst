@@ -6,7 +6,7 @@ Installation
 
 Make sure you have Python 3 installed::
 
-    sudo yum install -y python3
+    yum install -y python3
 
 Install upload-rest-api-client in a virtual environment::
 
