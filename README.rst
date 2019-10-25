@@ -13,9 +13,10 @@ Install upload-rest-api-client in a virtual environment::
     make
     source venv/bin/activate
 
-Add your credentials to the created configuration file :code:`~/.upload.cfg`::
+Add your credentials to the created configuration file :code:`~/.upload.cfg`
+with the editor editor of your choice, e.g.::
 
-    nano ~/.upload.cfg
+    vi ~/.upload.cfg
 
 Usage
 ~~~~~
