@@ -50,6 +50,11 @@ def _parse_args():
     parser = argparse.ArgumentParser(
         description="Client for accessing pre-ingest file storage."
     )
+    parser.add_argument(
+        "-k", "--insecure",
+        default=False, action="store_true",
+        help="skip SSL certification check"
+    )
     subparsers = parser.add_subparsers(title="command")
 
     # Upload parser
@@ -77,6 +82,7 @@ def _upload(args):
     if not tarfile.is_tarfile(fpath) and not zipfile.is_zipfile(fpath):
         raise ValueError("Unsupported file: '%s'" % fpath)
 
+    verify = not args.insecure
     host, user, password = _parse_conf_file()
     auth = HTTPBasicAuth(user, password)
     files_api = "%s/filestorage/api/v1/files" % host
@@ -88,7 +94,8 @@ def _upload(args):
         response = requests.post(
             "%s/upload.zip" % files_api,
             data=upload_file,
-            auth=auth
+            auth=auth,
+            verify=verify
         )
         response.raise_for_status()
 
@@ -100,7 +107,8 @@ def _upload(args):
     # Generate file metadata
     response = requests.post(
         "%s/*" % metadata_api,
-        auth=auth
+        auth=auth,
+        verify=verify
     )
     response.raise_for_status()
 
