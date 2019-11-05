@@ -113,19 +113,19 @@ def _upload(args):
     response.raise_for_status()
 
     print("Generated file metadata\n")
-    print_format = "%10s    %50s    %45s    %32s"
+    print_format = "%45s    %45s    %32s    %s"
     print(print_format % (
         "parent_dir",
-        "file_path",
         "identifier",
-        "checksum_value"
+        "checksum_value",
+        "file_path"
     ))
     for _file_md in response.json()["metax_response"]["success"]:
         print(print_format % (
-            _file_md["object"]["parent_directory"]["id"],
-            _file_md["object"]["file_path"],
+            _file_md["object"]["parent_directory"]["identifier"],
             _file_md["object"]["identifier"],
-            _file_md["object"]["checksum_value"]
+            _file_md["object"]["checksum"]["value"],
+            _file_md["object"]["file_path"]
         ))
 
 
