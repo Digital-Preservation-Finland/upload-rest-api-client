@@ -55,6 +55,10 @@ def _parse_args():
         default=False, action="store_true",
         help="skip SSL certification check"
     )
+    parser.add_argument(
+        "-o", "--output",
+        help="Path to the file created identifiers are written"
+    )
     subparsers = parser.add_subparsers(title="command")
 
     # Upload parser
@@ -127,6 +131,16 @@ def _upload(args):
             _file_md["object"]["checksum"]["value"],
             _file_md["object"]["file_path"]
         ))
+
+    if args.output:
+        with open(args.output, "w") as f_out:
+            for _file_md in response.json()["metax_response"]["success"]:
+                f_out.write("%s\t%s\t%s\t%s\n" % (
+                    _file_md["object"]["parent_directory"]["identifier"],
+                    _file_md["object"]["identifier"],
+                    _file_md["object"]["checksum"]["value"],
+                    _file_md["object"]["file_path"]
+                ))
 
 
 def main():
