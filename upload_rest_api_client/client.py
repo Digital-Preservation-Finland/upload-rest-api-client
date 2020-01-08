@@ -96,7 +96,7 @@ def _upload(args):
     # Upload the package
     with open(fpath, "rb") as upload_file:
         response = requests.post(
-            "%s/upload.zip" % files_api,
+            "%s/upload.zip?extract=true" % files_api,
             data=upload_file,
             auth=auth,
             verify=verify
