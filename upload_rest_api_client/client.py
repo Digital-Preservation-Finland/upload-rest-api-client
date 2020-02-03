@@ -30,13 +30,14 @@ def _md5_digest(fpath):
     return md5_hash.hexdigest()
 
 
-def _parse_conf_file():
-    """Parse configuration from ~/.upload.cfg
+def _parse_conf_file(conf):
+    """Parse configuration file.
 
+    :param conf: Path to the configuration file
     :returns: host, username, password
     """
     configuration = configparser.ConfigParser()
-    configuration.read(os.path.expanduser("~/.upload.cfg"))
+    configuration.read(os.path.expanduser(conf))
     return (
         configuration.get("upload", "host"),
         configuration.get("upload", "user"),
@@ -58,6 +59,13 @@ def _parse_args():
     parser.add_argument(
         "-o", "--output",
         help="Path to the file created identifiers are written"
+    )
+    parser.add_argument(
+        "-c", "--config", default="~/.upload.cfg",
+        help=(
+            "Path to the configuration file. Configuration file should include "
+            "host, username and password. See include/upload.cfg for an example."
+        )
     )
     subparsers = parser.add_subparsers(title="command")
 
@@ -86,8 +94,12 @@ def _upload(args):
     if not tarfile.is_tarfile(fpath) and not zipfile.is_zipfile(fpath):
         raise ValueError("Unsupported file: '%s'" % fpath)
 
+    # Check that the configuration file exists
+    if not os.path.isfile(os.path.expanduser(args.config)):
+        raise ValueError("Config file '%s' not found" % args.config)
+
     verify = not args.insecure
-    host, user, password = _parse_conf_file()
+    host, user, password = _parse_conf_file(args.config)
     auth = HTTPBasicAuth(user, password)
     files_api = "%s/filestorage/api/v1/files" % host
     metadata_api = "%s/filestorage/api/v1/metadata" % host
