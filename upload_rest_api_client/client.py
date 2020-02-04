@@ -64,7 +64,7 @@ def _parse_args():
         "-c", "--config", default="~/.upload.cfg",
         help=(
             "Path to the configuration file. Configuration file should include "
-            "host, username and password. See include/upload.cfg for an example."
+            "host, username and password in section [upload]."
         )
     )
     subparsers = parser.add_subparsers(title="command")
