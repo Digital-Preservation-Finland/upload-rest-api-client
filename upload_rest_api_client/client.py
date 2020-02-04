@@ -1,5 +1,6 @@
 """upload-rest-api-client"""
 import os
+import json
 import configparser
 import argparse
 import tarfile
@@ -9,6 +10,7 @@ import hashlib
 import requests
 import argcomplete
 from requests.auth import HTTPBasicAuth
+from requests.exceptions import HTTPError
 
 
 class DataIntegrityError(Exception):
@@ -113,7 +115,14 @@ def _upload(args):
             auth=auth,
             verify=verify
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            if response.json():
+                print(json.dumps(response.json(), indent=4))
+                return
+
+            raise
 
     if response.json()["md5"] != file_checksum:
         raise DataIntegrityError("Checksums do not match")
@@ -126,7 +135,14 @@ def _upload(args):
         auth=auth,
         verify=verify
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except HTTPError:
+        if response.json():
+            print(json.dumps(response.json(), indent=4))
+            return
+
+        raise
 
     print("Generated file metadata\n")
     print_format = "%45s    %45s    %32s    %s"
