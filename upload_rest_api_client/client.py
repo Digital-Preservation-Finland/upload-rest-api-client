@@ -118,7 +118,7 @@ def _upload(args):
         try:
             response.raise_for_status()
         except HTTPError:
-            if response.json():
+            if response.headers["content-type"] == "application/json":
                 print(json.dumps(response.json(), indent=4))
                 return
 
@@ -138,7 +138,7 @@ def _upload(args):
     try:
         response.raise_for_status()
     except HTTPError:
-        if response.json():
+        if response.headers["content-type"] == "application/json":
             print(json.dumps(response.json(), indent=4))
             return
 
