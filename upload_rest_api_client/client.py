@@ -1,4 +1,5 @@
 """upload-rest-api-client"""
+from __future__ import print_function
 import os
 import json
 import configparser
@@ -6,6 +7,7 @@ import argparse
 import tarfile
 import zipfile
 import hashlib
+from time import sleep
 
 import requests
 import argcomplete
@@ -108,9 +110,10 @@ def _upload(args):
     file_checksum = _md5_digest(fpath)
 
     # Upload the package
+    file_name = os.path.split(fpath)[1]
     with open(fpath, "rb") as upload_file:
         response = requests.post(
-            "%s/upload.zip?extract=true" % files_api,
+            "%s/%s?extract=true" % (files_api, file_name),
             data=upload_file,
             auth=auth,
             verify=verify
@@ -121,12 +124,26 @@ def _upload(args):
             if response.headers["content-type"] == "application/json":
                 print(json.dumps(response.json(), indent=4))
                 return
-
             raise
 
+    if response.status_code == 202:
+        status = "pending"
+        location = response.headers.get('Location')
+        while status == "pending":
+            sleep(1)
+            print('.', end='')
+            response = requests.get(location, auth=auth, verify=verify)
+            try:
+                response.raise_for_status()
+            except HTTPError:
+                if response.headers["content-type"] == "application/json":
+                    print(json.dumps(response.json(), indent=4))
+                    return
+                raise
+            status = response.json()['status']
+        print("")
     if response.json()["md5"] != file_checksum:
         raise DataIntegrityError("Checksums do not match")
-
     print("Uploaded '%s'" % fpath)
 
     # Generate file metadata
@@ -143,7 +160,22 @@ def _upload(args):
             return
 
         raise
-
+    if response.status_code == 202:
+        status = "pending"
+        location = response.headers.get('Location')
+        while status == "pending":
+            sleep(1)
+            print('.', end='')
+            response = requests.get(location, auth=auth, verify=verify)
+            try:
+                response.raise_for_status()
+            except HTTPError:
+                if response.headers["content-type"] == "application/json":
+                    print(json.dumps(response.json(), indent=4))
+                    return
+                raise
+            status = response.json()['status']
+        print("")
     print("Generated file metadata\n")
     print_format = "%45s    %45s    %32s    %s"
     print(print_format % (
