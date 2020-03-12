@@ -89,6 +89,25 @@ def _parse_args():
     return parser.parse_args()
 
 
+def _wait_response(response, auth, verify):
+    status = "pending"
+    location = response.headers.get('Location')
+    while status == "pending":
+        sleep(5)
+        print('.', end='')
+        response = requests.get(location, auth=auth, verify=verify)
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            if response.headers["content-type"] == "application/json":
+                print(json.dumps(response.json(), indent=4))
+                return
+            raise
+        status = response.json()['status']
+    print("")
+    return response
+
+
 def _upload(args):
     """Upload tar or zip archive to the pre-ingest file storage and generate
     Metax metadata.
@@ -127,21 +146,7 @@ def _upload(args):
             raise
 
     if response.status_code == 202:
-        status = "pending"
-        location = response.headers.get('Location')
-        while status == "pending":
-            sleep(1)
-            print('.', end='')
-            response = requests.get(location, auth=auth, verify=verify)
-            try:
-                response.raise_for_status()
-            except HTTPError:
-                if response.headers["content-type"] == "application/json":
-                    print(json.dumps(response.json(), indent=4))
-                    return
-                raise
-            status = response.json()['status']
-        print("")
+        response = _wait_response(response, auth, verify)
     if response.json()["md5"] != file_checksum:
         raise DataIntegrityError("Checksums do not match")
     print("Uploaded '%s'" % fpath)
@@ -161,21 +166,7 @@ def _upload(args):
 
         raise
     if response.status_code == 202:
-        status = "pending"
-        location = response.headers.get('Location')
-        while status == "pending":
-            sleep(1)
-            print('.', end='')
-            response = requests.get(location, auth=auth, verify=verify)
-            try:
-                response.raise_for_status()
-            except HTTPError:
-                if response.headers["content-type"] == "application/json":
-                    print(json.dumps(response.json(), indent=4))
-                    return
-                raise
-            status = response.json()['status']
-        print("")
+        response = _wait_response(response, auth, verify)
     print("Generated file metadata\n")
     print_format = "%45s    %45s    %32s    %s"
     print(print_format % (
