@@ -11,6 +11,7 @@ from time import sleep
 
 import requests
 import argcomplete
+import urllib3
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
@@ -137,6 +138,10 @@ def _upload(args):
             auth=auth,
             verify=verify
         )
+
+        # Print InsecureRequestWarning only once
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         try:
             response.raise_for_status()
         except HTTPError:
