@@ -1,6 +1,7 @@
 """upload-rest-api-client"""
 from __future__ import print_function
 import os
+import sys
 import json
 import configparser
 import argparse
@@ -93,6 +94,7 @@ def _parse_args():
 def _wait_response(response, auth, verify):
     status = "pending"
     location = response.headers.get('Location')
+
     while status == "pending":
         sleep(5)
         print('.', end='')
@@ -102,10 +104,15 @@ def _wait_response(response, auth, verify):
         except HTTPError:
             if response.headers["content-type"] == "application/json":
                 print(json.dumps(response.json(), indent=4))
-                return
+                sys.exit(1)
             raise
         status = response.json()['status']
-    print("")
+
+    print()
+    if status == "error":
+        print(json.dumps(response.json(), indent=4))
+        sys.exit(1)
+
     return response
 
 
