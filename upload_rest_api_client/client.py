@@ -137,10 +137,9 @@ def _upload(args):
     file_checksum = _md5_digest(fpath)
 
     # Upload the package
-    file_name = os.path.split(fpath)[1]
     with open(fpath, "rb") as upload_file:
         response = requests.post(
-            "%s/%s?extract=true" % (archives_api, file_name),
+            archives_api,
             data=upload_file,
             auth=auth,
             verify=verify
