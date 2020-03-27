@@ -97,7 +97,7 @@ def _wait_response(response, auth, verify):
 
     while status == "pending":
         sleep(5)
-        print('.', end='')
+        print('.', end='', flush=True)
         response = requests.get(location, auth=auth, verify=verify)
         try:
             response.raise_for_status()
@@ -132,7 +132,7 @@ def _upload(args):
     verify = not args.insecure
     host, user, password = _parse_conf_file(args.config)
     auth = HTTPBasicAuth(user, password)
-    files_api = "%s/filestorage/api/v1/files" % host
+    archives_api = "%s/filestorage/api/v1/archives" % host
     metadata_api = "%s/filestorage/api/v1/metadata" % host
     file_checksum = _md5_digest(fpath)
 
@@ -140,7 +140,7 @@ def _upload(args):
     file_name = os.path.split(fpath)[1]
     with open(fpath, "rb") as upload_file:
         response = requests.post(
-            "%s/%s?extract=true" % (files_api, file_name),
+            "%s/%s?extract=true" % (archives_api, file_name),
             data=upload_file,
             auth=auth,
             verify=verify
