@@ -93,12 +93,12 @@ def _parse_args():
 
 def _wait_response(response, auth, verify):
     status = "pending"
-    location = response.headers.get('Location')
+    polling_url = response.json()["polling_url"]
 
     while status == "pending":
         sleep(5)
         print('.', end='', flush=True)
-        response = requests.get(location, auth=auth, verify=verify)
+        response = requests.get(polling_url, auth=auth, verify=verify)
         try:
             response.raise_for_status()
         except HTTPError:
