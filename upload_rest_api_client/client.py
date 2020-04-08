@@ -9,6 +9,7 @@ import tarfile
 import zipfile
 import hashlib
 from time import sleep
+from urllib.parse import quote
 
 import requests
 import argcomplete
@@ -83,6 +84,10 @@ def _parse_args():
         "filepath",
         help="path to the uploaded tar or zip archive"
     )
+    upload_parser.add_argument(
+        "--dataset", required=True,
+        help="Name of the uploaded dataset. Used as the base directory."
+    )
     upload_parser.set_defaults(func=_upload)
 
     # Setup bash auto completion
@@ -120,8 +125,10 @@ def _upload(args):
     """Upload tar or zip archive to the pre-ingest file storage and generate
     Metax metadata.
     """
-    # Check that the provided file is either a zip or tar archive
     fpath = args.filepath
+    dataset = quote(args.dataset)
+
+    # Check that the provided file is either a zip or tar archive
     if not tarfile.is_tarfile(fpath) and not zipfile.is_zipfile(fpath):
         raise ValueError("Unsupported file: '%s'" % fpath)
 
@@ -139,7 +146,7 @@ def _upload(args):
     # Upload the package
     with open(fpath, "rb") as upload_file:
         response = requests.post(
-            archives_api,
+            "%s?dir=%s" % (archives_api, dataset),
             data=upload_file,
             auth=auth,
             verify=verify
@@ -164,7 +171,7 @@ def _upload(args):
 
     # Generate file metadata
     response = requests.post(
-        "%s/*" % metadata_api,
+        "%s/%s/" % (metadata_api, dataset),
         auth=auth,
         verify=verify
     )
