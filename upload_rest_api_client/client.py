@@ -81,12 +81,12 @@ def _parse_args():
         "upload", help="upload package to the pre-ingest file storage"
     )
     upload_parser.add_argument(
-        "filepath",
+        "source",
         help="path to the uploaded tar or zip archive"
     )
     upload_parser.add_argument(
-        "--dataset", required=True,
-        help="Name of the uploaded dataset. Used as the base directory."
+        "target",
+        help="directory where the uploaded archive is extracted"
     )
     upload_parser.set_defaults(func=_upload)
 
@@ -125,8 +125,8 @@ def _upload(args):
     """Upload tar or zip archive to the pre-ingest file storage and generate
     Metax metadata.
     """
-    fpath = args.filepath
-    dataset = quote(args.dataset)
+    fpath = args.source
+    target = quote(args.target)
 
     # Check that the provided file is either a zip or tar archive
     if not tarfile.is_tarfile(fpath) and not zipfile.is_zipfile(fpath):
@@ -146,7 +146,7 @@ def _upload(args):
     # Upload the package
     with open(fpath, "rb") as upload_file:
         response = requests.post(
-            "%s?dir=%s" % (archives_api, dataset),
+            "%s?dir=%s" % (archives_api, target),
             data=upload_file,
             auth=auth,
             verify=verify
@@ -171,7 +171,7 @@ def _upload(args):
 
     # Generate file metadata
     response = requests.post(
-        "%s/%s/" % (metadata_api, dataset),
+        "%s/%s/" % (metadata_api, target),
         auth=auth,
         verify=verify
     )
