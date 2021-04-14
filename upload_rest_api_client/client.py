@@ -139,8 +139,8 @@ def _upload(args):
     verify = not args.insecure
     host, user, password = _parse_conf_file(args.config)
     auth = HTTPBasicAuth(user, password)
-    archives_api = "%s/filestorage/api/v1/archives" % host
-    metadata_api = "%s/filestorage/api/v1/metadata" % host
+    archives_api = "%s/v1/archives" % host
+    metadata_api = "%s/v1/metadata" % host
     file_checksum = _md5_digest(fpath)
 
     # Upload the package
