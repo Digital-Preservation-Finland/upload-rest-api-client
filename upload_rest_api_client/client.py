@@ -1,4 +1,4 @@
-"""upload-rest-api-client"""
+"""upload-rest-api-client."""
 from __future__ import print_function
 import os
 import sys
@@ -19,11 +19,11 @@ from requests.exceptions import HTTPError
 
 
 class DataIntegrityError(Exception):
-    """Exception raised when data corruption occurs during a transfer."""
+    """Exception raised when transferred data is corrupted."""
 
 
 def _md5_digest(fpath):
-    """Return md5 digest of file fpath
+    """Return md5 digest of file fpath.
 
     :param fpath: path to file to be hashed
     :returns: digest as a string
@@ -70,8 +70,8 @@ def _parse_args():
     parser.add_argument(
         "-c", "--config", default="~/.upload.cfg",
         help=(
-            "Path to the configuration file. Configuration file should include "
-            "host, username and password in section [upload]."
+            "Path to the configuration file. Configuration file should "
+            "include host, username and password in section [upload]."
         )
     )
     subparsers = parser.add_subparsers(title="command")
@@ -122,8 +122,10 @@ def _wait_response(response, auth, verify):
 
 
 def _upload(args):
-    """Upload tar or zip archive to the pre-ingest file storage and generate
-    Metax metadata.
+    """Upload archive to pre-ingest file storage.
+
+    Uploads tar or zip archive to the pre-ingest file storage and
+    generates file metadata which is stored in Metax.
     """
     fpath = args.source
     target = quote(args.target)
