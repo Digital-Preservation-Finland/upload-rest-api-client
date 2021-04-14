@@ -139,6 +139,7 @@ def _upload(args):
     auth = HTTPBasicAuth(user, password)
     archives_api = "%s/v1/archives" % host
     metadata_api = "%s/v1/metadata" % host
+    files_api = "%s/v1/files" % host
 
     # Upload the package
     with open(fpath, "rb") as upload_file:
@@ -180,31 +181,10 @@ def _upload(args):
         raise
     if response.status_code == 202:
         response = _wait_response(response, auth, verify)
-    print("Generated file metadata\n")
-    print_format = "%45s    %45s    %32s    %s"
-    print(print_format % (
-        "parent_dir",
-        "identifier",
-        "checksum_value",
-        "file_path"
-    ))
-    for _file_md in response.json()["metax_response"]["success"]:
-        print(print_format % (
-            _file_md["object"]["parent_directory"]["identifier"],
-            _file_md["object"]["identifier"],
-            _file_md["object"]["checksum"]["value"],
-            _file_md["object"]["file_path"]
-        ))
-
-    if args.output:
-        with open(args.output, "w") as f_out:
-            for _file_md in response.json()["metax_response"]["success"]:
-                f_out.write("%s\t%s\t%s\t%s\n" % (
-                    _file_md["object"]["parent_directory"]["identifier"],
-                    _file_md["object"]["identifier"],
-                    _file_md["object"]["checksum"]["value"],
-                    _file_md["object"]["file_path"]
-                ))
+    directory = requests.get("%s/%s/" % (files_api, target)).json()
+    print("Generated metadata for directory.\n\n"
+          "Identifier: {}\n"
+          "Path: /{}".format(directory['identifier'], target))
 
 
 def main():
