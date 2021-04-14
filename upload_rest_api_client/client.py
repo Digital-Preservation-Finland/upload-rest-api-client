@@ -18,10 +18,6 @@ from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 
-class DataIntegrityError(Exception):
-    """Exception raised when transferred data is corrupted."""
-
-
 def _md5_digest(fpath):
     """Return md5 digest of file fpath.
 
@@ -143,7 +139,6 @@ def _upload(args):
     auth = HTTPBasicAuth(user, password)
     archives_api = "%s/v1/archives" % host
     metadata_api = "%s/v1/metadata" % host
-    file_checksum = _md5_digest(fpath)
 
     # Upload the package
     with open(fpath, "rb") as upload_file:
@@ -167,8 +162,6 @@ def _upload(args):
 
     if response.status_code == 202:
         response = _wait_response(response, auth, verify)
-    if response.json()["md5"] != file_checksum:
-        raise DataIntegrityError("Checksums do not match")
     print("Uploaded '%s'" % fpath)
 
     # Generate file metadata
