@@ -94,6 +94,21 @@ def _parse_args():
         "target",
         help="directory where the uploaded archive is extracted"
     )
+    # TODO: In Python 3.8 optional bool arguments can be implemented
+    # using argparse.BooleanOptionalAction class
+    upload_parser.add_argument(
+        "--gtk",
+        default=True,
+        action='store_true',
+        help="Print information about subdirectories and files when "
+             "uploading archives."
+    )
+    upload_parser.add_argument(
+        "--no-gtk",
+        dest='gtk',
+        action='store_false',
+        help="Simple output format."
+    )
     upload_parser.set_defaults(func=_upload)
 
     # Setup bash auto completion
@@ -116,7 +131,13 @@ def _browse(client, args):
     :param client: Pre-ingest file storage client
     :param args: Browsing arguments
     """
-    client.browse(args.path)
+    resource = client.browse(args.path)
+    for key, value in resource.items():
+        print("{}:".format(key))
+        value_list = value if isinstance(value, list) else [value]
+        for value in value_list:
+            print("    {}".format(value))
+        print("")
 
 
 def _upload(client, args):
@@ -128,7 +149,40 @@ def _upload(client, args):
     :param client: Pre-ingest file storage client
     :param args: Upload arguments
     """
-    client.upload(args.source, args.target)
+    # Ensure that target directory path starts with slash
+    target = "/{}".format(args.target.strip('/'))
+
+    # Upload archive
+    client.upload_archive(args.source, target)
+    print("Uploaded '%s'" % args.source)
+
+    # Generate metadata
+    directory = client.generate_directory_metadata(target)
+
+    # Print information about about generated metadata
+    if args.gtk:
+        files = client.directory_files(target)
+
+        print("Generated file metadata\n")
+        print_format = "%45s    %45s    %32s    %s"
+        print(print_format % (
+            "parent_dir",
+            "identifier",
+            "checksum_value",
+            "file_path"
+        ))
+        for file_ in files:
+            print(print_format % tuple(file_.values()))
+
+        if args.output:
+            with open(args.output, "w") as f_out:
+                for file_ in files:
+                    f_out.write("%s\t%s\t%s\t%s\n" % tuple(file_.values()))
+
+    else:
+        print("Generated metadata for directory: /{}\n"
+              "Directory identifier: {}".format(target,
+                                                directory['identifier']))
 
 
 class PreIngestFileStorage():
@@ -159,13 +213,7 @@ class PreIngestFileStorage():
                                 auth=self.auth,
                                 verify=self.verify)
         response.raise_for_status()
-        resource = response.json()
-        for key, value in resource.items():
-            print("{}:".format(key))
-            value_list = value if isinstance(value, list) else [value]
-            for value in value_list:
-                print("    {}".format(value))
-            print("")
+        return response.json()
 
     def _wait_response(self, response):
         status = "pending"
@@ -193,11 +241,43 @@ class PreIngestFileStorage():
 
         return response
 
-    def upload(self, source, target):
-        """Upload archive to pre-ingest file storage.
+    def directory_files(self, target_directory):
+        """Fetch file metadata for all files in directory."""
+        # Get list of all files pre-ingest file storage
+        directory_tree = requests.get(self.files_api,
+                                      auth=self.auth,
+                                      verify=self.verify).json()
+        all_file_paths = list()
+        for directory, files in directory_tree.items():
+            for file_ in files:
+                all_file_paths.append(os.path.join(directory, file_))
 
-        Uploads tar or zip archive to the pre-ingest file storage and
-        generates file metadata which is stored in Metax.
+        # List only files in target directory (and subdirectories)
+        directory_file_paths = [path for path in all_file_paths
+                                if path.startswith(target_directory)]
+
+        # Get file metadata for files in directory (and subdirectories)
+        files = list()
+        for file_path in directory_file_paths:
+            file_ = requests.get("{}/{}".format(self.files_api, file_path),
+                                 auth=self.auth,
+                                 verify=self.verify).json()
+            parent_directory \
+                = requests.get("{}/{}".format(self.files_api,
+                                              os.path.dirname(file_path)),
+                               auth=self.auth,
+                               verify=self.verify).json()
+            files.append({
+                "parent_directory_identifier": parent_directory["identifier"],
+                "identifier": file_["metax_identifier"],
+                "checksum": file_["md5"],
+                "path": file_["file_path"]
+            })
+
+        return files
+
+    def upload_archive(self, source, target):
+        """Upload archive to pre-ingest file storage.
 
         :param source: path to archive on local disk
         :param target: target directory path in pre-ingest file storage
@@ -209,7 +289,7 @@ class PreIngestFileStorage():
         # Upload the package
         with open(source, "rb") as upload_file:
             response = requests.post(
-                "%s?dir=%s" % (self.archives_api, target),
+                "%s?dir=%s" % (self.archives_api, target.strip('/')),
                 data=upload_file,
                 auth=self.auth,
                 verify=self.verify
@@ -223,16 +303,20 @@ class PreIngestFileStorage():
             except HTTPError:
                 if response.headers["content-type"] == "application/json":
                     print(json.dumps(response.json(), indent=4))
-                    return
+                    sys.exit(1)
                 raise
 
         if response.status_code == 202:
             response = self._wait_response(response)
-        print("Uploaded '%s'" % source)
 
-        # Generate file metadata
+    def generate_directory_metadata(self, target):
+        """Generate metadata for directory.
+
+        :param source: path to archive on local disk
+        :param target: target directory path in pre-ingest file storage
+        """
         response = requests.post(
-            "%s/%s/" % (self.metadata_api, target),
+            "%s/%s/" % (self.metadata_api, target.strip('/')),
             auth=self.auth,
             verify=self.verify
         )
@@ -241,15 +325,12 @@ class PreIngestFileStorage():
         except HTTPError:
             if response.headers["content-type"] == "application/json":
                 print(json.dumps(response.json(), indent=4))
-                return
-
+                sys.exit(1)
             raise
         if response.status_code == 202:
             response = self._wait_response(response)
-        directory = requests.get("%s/%s/" % (self.files_api, target)).json()
-        print("Generated metadata for directory: /{}\n"
-              "Directory identifier: {}".format(target,
-                                                directory['identifier']))
+        return requests.get("%s/%s/" % (self.files_api,
+                                        target.strip('/'))).json()
 
 
 def main():
