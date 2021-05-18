@@ -38,6 +38,9 @@ def _parse_conf_file(conf):
     :param conf: Path to the configuration file
     :returns: host, username, password
     """
+    if not os.path.isfile(os.path.expanduser(conf)):
+        raise ValueError("Config file '%s' not found" % conf)
+
     configuration = configparser.ConfigParser()
     configuration.read(os.path.expanduser(conf))
     return (
@@ -47,8 +50,12 @@ def _parse_conf_file(conf):
     )
 
 
-def _parse_args():
-    """Parse command line arguments."""
+def _parse_args(cli_args):
+    """Parse command line arguments.
+
+    :param cli_args: command line arguments
+    :returns: parsed command line arguments
+    """
     # Base parser
     parser = argparse.ArgumentParser(
         description="Client for accessing pre-ingest file storage."
@@ -115,7 +122,7 @@ def _parse_args():
     argcomplete.autocomplete(parser)
 
     # Parse arguments
-    args = parser.parse_args()
+    args = parser.parse_args(cli_args)
     if not args.func:
         parser.print_help()
         sys.exit(0)
@@ -180,7 +187,7 @@ def _upload(client, args):
                     f_out.write("%s\t%s\t%s\t%s\n" % tuple(file_.values()))
 
     else:
-        print("Generated metadata for directory: /{}\n"
+        print("Generated metadata for directory: {}\n"
               "Directory identifier: {}".format(target,
                                                 directory['identifier']))
 
@@ -256,12 +263,12 @@ class PreIngestFileStorage():
         files = list()
         for file_path in directory_file_paths:
             file_ = self.session.get(
-                "{}/{}".format(self.files_api, file_path)
+                "{}/{}".format(self.files_api, file_path.strip('/'))
             ).json()
             parent_directory \
                 = self.session.get(
                     "{}/{}".format(self.files_api,
-                                   os.path.dirname(file_path))
+                                   os.path.dirname(file_path).strip('/'))
                 ).json()
             files.append({
                 "parent_directory_identifier": parent_directory["identifier"],
@@ -310,7 +317,7 @@ class PreIngestFileStorage():
         :param target: target directory path in pre-ingest file storage
         """
         response = self.session.post(
-            "%s/%s/" % (self.metadata_api, target.strip('/'))
+            "%s/%s" % (self.metadata_api, target.strip('/'))
         )
         try:
             response.raise_for_status()
@@ -321,17 +328,16 @@ class PreIngestFileStorage():
             raise
         if response.status_code == 202:
             response = self._wait_response(response)
-        return self.session.get("%s/%s/" % (self.files_api,
-                                            target.strip('/'))).json()
+        return self.session.get("%s/%s" % (self.files_api,
+                                           target.strip('/'))).json()
 
 
-def main():
-    """Parse command line arguments and run the chosen function."""
-    args = _parse_args()
+def main(cli_args):
+    """Parse command line arguments and run the chosen function.
 
-    # Check that the configuration file exists
-    if not os.path.isfile(os.path.expanduser(args.config)):
-        raise ValueError("Config file '%s' not found" % args.config)
+    :param cli_args: command line arguments
+    """
+    args = _parse_args(cli_args)
 
     verify = not args.insecure
     host, user, password = _parse_conf_file(args.config)
@@ -341,4 +347,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
