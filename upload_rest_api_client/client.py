@@ -135,8 +135,8 @@ def _browse(client, args):
     for key, value in resource.items():
         print("{}:".format(key))
         value_list = value if isinstance(value, list) else [value]
-        for value in value_list:
-            print("    {}".format(value))
+        for value_ in value_list:
+            print("    {}".format(value_))
         print("")
 
 
@@ -196,10 +196,10 @@ class PreIngestFileStorage():
         :param user: username
         :param password: password
         """
-        self.verify = verify
+        self.session = requests.Session()
+        self.session.verify = verify
+        self.session.auth = (HTTPBasicAuth(user, password))
         self.host = host
-        self.user = user
-        self.auth = HTTPBasicAuth(user, password)
         self.archives_api = "%s/v1/archives" % host
         self.metadata_api = "%s/v1/metadata" % host
         self.files_api = "%s/v1/files" % host
@@ -209,9 +209,9 @@ class PreIngestFileStorage():
 
         :param path: File/directory path
         """
-        response = requests.get("%s/%s" % (self.files_api, path.strip('/')),
-                                auth=self.auth,
-                                verify=self.verify)
+        response = self.session.get(
+            "%s/%s" % (self.files_api, path.strip('/'))
+        )
         response.raise_for_status()
         return response.json()
 
@@ -222,9 +222,7 @@ class PreIngestFileStorage():
         while status == "pending":
             sleep(5)
             print('.', end='', flush=True)
-            response = requests.get(polling_url,
-                                    auth=self.auth,
-                                    verify=self.verify)
+            response = self.session.get(polling_url)
             try:
                 response.raise_for_status()
             except HTTPError:
@@ -244,9 +242,7 @@ class PreIngestFileStorage():
     def directory_files(self, target_directory):
         """Fetch file metadata for all files in directory."""
         # Get list of all files pre-ingest file storage
-        directory_tree = requests.get(self.files_api,
-                                      auth=self.auth,
-                                      verify=self.verify).json()
+        directory_tree = self.session.get(self.files_api).json()
         all_file_paths = list()
         for directory, files in directory_tree.items():
             for file_ in files:
@@ -259,14 +255,14 @@ class PreIngestFileStorage():
         # Get file metadata for files in directory (and subdirectories)
         files = list()
         for file_path in directory_file_paths:
-            file_ = requests.get("{}/{}".format(self.files_api, file_path),
-                                 auth=self.auth,
-                                 verify=self.verify).json()
+            file_ = self.session.get(
+                "{}/{}".format(self.files_api, file_path)
+            ).json()
             parent_directory \
-                = requests.get("{}/{}".format(self.files_api,
-                                              os.path.dirname(file_path)),
-                               auth=self.auth,
-                               verify=self.verify).json()
+                = self.session.get(
+                    "{}/{}".format(self.files_api,
+                                   os.path.dirname(file_path))
+                ).json()
             files.append({
                 "parent_directory_identifier": parent_directory["identifier"],
                 "identifier": file_["metax_identifier"],
@@ -288,11 +284,9 @@ class PreIngestFileStorage():
 
         # Upload the package
         with open(source, "rb") as upload_file:
-            response = requests.post(
+            response = self.session.post(
                 "%s?dir=%s" % (self.archives_api, target.strip('/')),
-                data=upload_file,
-                auth=self.auth,
-                verify=self.verify
+                data=upload_file
             )
 
             # Print InsecureRequestWarning only once
@@ -315,10 +309,8 @@ class PreIngestFileStorage():
         :param source: path to archive on local disk
         :param target: target directory path in pre-ingest file storage
         """
-        response = requests.post(
-            "%s/%s/" % (self.metadata_api, target.strip('/')),
-            auth=self.auth,
-            verify=self.verify
+        response = self.session.post(
+            "%s/%s/" % (self.metadata_api, target.strip('/'))
         )
         try:
             response.raise_for_status()
@@ -329,8 +321,8 @@ class PreIngestFileStorage():
             raise
         if response.status_code == 202:
             response = self._wait_response(response)
-        return requests.get("%s/%s/" % (self.files_api,
-                                        target.strip('/'))).json()
+        return self.session.get("%s/%s/" % (self.files_api,
+                                            target.strip('/'))).json()
 
 
 def main():
