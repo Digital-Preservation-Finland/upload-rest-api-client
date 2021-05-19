@@ -39,7 +39,7 @@ def _parse_conf_file(conf):
     :returns: host, username, password
     """
     if not os.path.isfile(os.path.expanduser(conf)):
-        raise ValueError("Config file '%s' not found" % conf)
+        raise ValueError("Config file '{}' not found".format(conf))
 
     configuration = configparser.ConfigParser()
     configuration.read(os.path.expanduser(conf))
@@ -161,7 +161,7 @@ def _upload(client, args):
 
     # Upload archive
     client.upload_archive(args.source, target)
-    print("Uploaded '%s'" % args.source)
+    print("Uploaded '{}'".format(args.source))
 
     # Generate metadata
     directory = client.generate_directory_metadata(target)
@@ -171,20 +171,20 @@ def _upload(client, args):
         files = client.directory_files(target)
 
         print("Generated file metadata\n")
-        print_format = "%45s    %45s    %32s    %s"
-        print(print_format % (
+        print_format = "{: >45}    {: >45}    {: >32}    {}"
+        print(print_format.format(
             "parent_dir",
             "identifier",
             "checksum_value",
             "file_path"
         ))
         for file_ in files:
-            print(print_format % tuple(file_.values()))
+            print(print_format.format(*file_.values()))
 
         if args.output:
             with open(args.output, "w") as f_out:
                 for file_ in files:
-                    f_out.write("%s\t%s\t%s\t%s\n" % tuple(file_.values()))
+                    f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
     else:
         print("Generated metadata for directory: {}\n"
@@ -207,9 +207,9 @@ class PreIngestFileStorage():
         self.session.verify = verify
         self.session.auth = (HTTPBasicAuth(user, password))
         self.host = host
-        self.archives_api = "%s/v1/archives" % host
-        self.metadata_api = "%s/v1/metadata" % host
-        self.files_api = "%s/v1/files" % host
+        self.archives_api = "{}/v1/archives".format(host)
+        self.metadata_api = "{}/v1/metadata".format(host)
+        self.files_api = "{}/v1/files".format(host)
 
     def browse(self, path):
         """Browse files and directories.
@@ -217,7 +217,7 @@ class PreIngestFileStorage():
         :param path: File/directory path
         """
         response = self.session.get(
-            "%s/%s" % (self.files_api, path.strip('/'))
+            "{}/{}".format(self.files_api, path.strip('/'))
         )
         response.raise_for_status()
         return response.json()
@@ -287,12 +287,12 @@ class PreIngestFileStorage():
         """
         # Check that the provided file is either a zip or tar archive
         if not tarfile.is_tarfile(source) and not zipfile.is_zipfile(source):
-            raise ValueError("Unsupported file: '%s'" % source)
+            raise ValueError("Unsupported file: '{}'".format(source))
 
         # Upload the package
         with open(source, "rb") as upload_file:
             response = self.session.post(
-                "%s?dir=%s" % (self.archives_api, target.strip('/')),
+                "{}?dir={}".format(self.archives_api, target.strip('/')),
                 data=upload_file
             )
 
@@ -317,7 +317,7 @@ class PreIngestFileStorage():
         :param target: target directory path in pre-ingest file storage
         """
         response = self.session.post(
-            "%s/%s" % (self.metadata_api, target.strip('/'))
+            "{}/{}".format(self.metadata_api, target.strip('/'))
         )
         try:
             response.raise_for_status()
@@ -328,8 +328,8 @@ class PreIngestFileStorage():
             raise
         if response.status_code == 202:
             response = self._wait_response(response)
-        return self.session.get("%s/%s" % (self.files_api,
-                                           target.strip('/'))).json()
+        return self.session.get("{}/{}".format(self.files_api,
+                                               target.strip('/'))).json()
 
 
 def main(cli_args):
