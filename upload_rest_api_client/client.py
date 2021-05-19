@@ -292,7 +292,8 @@ class PreIngestFileStorage():
         # Upload the package
         with open(source, "rb") as upload_file:
             response = self.session.post(
-                "{}?dir={}".format(self.archives_api, target.strip('/')),
+                self.archives_api,
+                params={'dir': target.strip('/')},
                 data=upload_file
             )
 
