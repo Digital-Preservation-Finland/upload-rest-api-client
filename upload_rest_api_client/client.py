@@ -287,7 +287,8 @@ class PreIngestFileStorage():
             response = self.session.post(
                 self.archives_api,
                 params={'dir': target.strip('/')},
-                data=upload_file
+                data=upload_file,
+                headers={'Content-Md5': _md5_digest(source)}
             )
 
             # Print InsecureRequestWarning only once
