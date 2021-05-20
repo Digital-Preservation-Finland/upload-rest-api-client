@@ -124,7 +124,7 @@ def test_upload_archive(requests_mock, capsys, tmp_path, output_argument,
     """
     # Mock all urls that are requested
     requests_mock.post('{}/archives'.format(API_URL))
-    requests_mock.post('{}/metadata/target'.format(API_URL))
+    requests_mock.post('{}/metadata/target*'.format(API_URL))
     requests_mock.get('{}/files/target'.format(API_URL),
                       json={
                           "directories": [],
@@ -169,9 +169,50 @@ def test_upload_archive(requests_mock, capsys, tmp_path, output_argument,
         open_archive.add(file2)
 
     # Post archive to "target" directory
-    upload_rest_api_client.client.main(['upload', str(archive), 'target',
+    upload_rest_api_client.client.main(['upload', str(archive),
+                                        '--target', 'target',
                                         output_argument])
 
     # Check output line by line, but skip first line
     captured = capsys.readouterr().out.splitlines()
     assert captured[1:] == output
+
+
+@pytest.mark.usefixtures('mock_configuration')
+def test_upload_archive_to_root(requests_mock, tmp_path):
+    """Test uploading archive to root directory.
+
+    Test that HTTP requests are sent to correct urls when no target
+    directory is given as argument.
+
+    :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
+    :param tmp_path: temporary path for archive file
+    :param output_argument: commandline argument to choose output format
+    :param output: list of expected command output lines
+    """
+    # Mock all urls that are requested
+    requests_mock.post('{}/archives'.format(API_URL))
+    requests_mock.post('{}/metadata/*'.format(API_URL))
+    requests_mock.get('{}/files/'.format(API_URL),
+                      json={
+                          "directories": [],
+                          "files": [
+                              "file1",
+                              "file2",
+                          ],
+                          "identifier": 'directory_id1'
+                      })
+
+    # Create archive that contains two files
+    file1 = tmp_path / 'file1'
+    file1.write_text('foo')
+    file2 = tmp_path / 'file2'
+    file2.write_text('bar')
+    archive = tmp_path / 'archive.tar'
+    with tarfile.open(archive, 'w') as open_archive:
+        open_archive.add(file1)
+        open_archive.add(file2)
+
+    # Post archive to root directory
+    upload_rest_api_client.client.main(['upload', str(archive), '--no-gtk'])

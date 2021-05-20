@@ -98,8 +98,9 @@ def _parse_args(cli_args):
         help="path to the uploaded tar or zip archive"
     )
     upload_parser.add_argument(
-        "target",
-        help="directory where the uploaded archive is extracted"
+        "--target",
+        help="directory where the uploaded archive is extracted",
+        default='/'
     )
     # TODO: In Python 3.8 optional bool arguments can be implemented
     # using argparse.BooleanOptionalAction class
@@ -318,7 +319,10 @@ class PreIngestFileStorage():
         :param target: target directory path in pre-ingest file storage
         """
         response = self.session.post(
-            "{}/{}".format(self.metadata_api, target.strip('/'))
+            # Character "*" is added to url to enable metadata
+            # generation for root directory. See TPASPKT-719 for more
+            # information.
+            "{}/{}*".format(self.metadata_api, target.strip('/'))
         )
         try:
             response.raise_for_status()
