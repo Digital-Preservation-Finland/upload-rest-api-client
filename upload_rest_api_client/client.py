@@ -66,10 +66,6 @@ def _parse_args(cli_args):
         help="skip SSL certification check"
     )
     parser.add_argument(
-        "-o", "--output",
-        help="Path to the file created identifiers are written"
-    )
-    parser.add_argument(
         "-c", "--config", default="~/.upload.cfg",
         help=(
             "Path to the configuration file. Configuration file should "
@@ -102,20 +98,15 @@ def _parse_args(cli_args):
         help="directory where the uploaded archive is extracted",
         default='/'
     )
-    # TODO: In Python 3.8 optional bool arguments can be implemented
-    # using argparse.BooleanOptionalAction class
     upload_parser.add_argument(
-        "--gtk",
-        default=True,
+        "-o", "--output",
+        help="Path to the file where created identifiers are written"
+    )
+    upload_parser.add_argument(
+        "-v", "--verbose",
         action='store_true',
         help="Print information about subdirectories and files when "
              "uploading archives."
-    )
-    upload_parser.add_argument(
-        "--no-gtk",
-        dest='gtk',
-        action='store_false',
-        help="Simple output format."
     )
     upload_parser.set_defaults(func=_upload)
 
@@ -167,10 +158,16 @@ def _upload(client, args):
     # Generate metadata
     directory = client.generate_directory_metadata(target)
 
-    # Print information about about generated metadata
-    if args.gtk:
+    if args.output:
         files = client.directory_files(target)
+        with open(args.output, "w") as f_out:
+            for file_ in files:
+                f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
+    # Print information about about generated metadata
+    if args.verbose:
+        if 'files' not in locals():
+            files = client.directory_files(target)
         print("Generated file metadata\n")
         print_format = "{: >45}    {: >45}    {: >32}    {}"
         print(print_format.format(
@@ -181,11 +178,6 @@ def _upload(client, args):
         ))
         for file_ in files:
             print(print_format.format(*file_.values()))
-
-        if args.output:
-            with open(args.output, "w") as f_out:
-                for file_ in files:
-                    f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
     else:
         print("Generated metadata for directory: {}\n"

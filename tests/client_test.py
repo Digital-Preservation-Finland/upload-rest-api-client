@@ -88,10 +88,15 @@ def test_browse(requests_mock, capsys, response, output):
 
 
 @pytest.mark.parametrize(
-    ('output_argument', 'output'),
+    ('optional_arguments', 'output'),
     [
         (
-            '--gtk',
+            ['--target', 'target'],
+            ['Generated metadata for directory: /target',
+             'Directory identifier: directory_id1']
+        ),
+        (
+            ['--target', 'target', '-v'],
             ['Generated file metadata',
              '']
             + ["%45s    %45s    %32s    %s" % line for line in (
@@ -99,17 +104,11 @@ def test_browse(requests_mock, capsys, response, output):
                 ('directory_id1', 'file_id1', 'checksum1', '/target/file1'),
                 ('directory_id1', 'file_id2', 'checksum2', '/target/file2')
             )]
-        ),
-        (
-            '--no-gtk',
-            ['Generated metadata for directory: /target',
-             'Directory identifier: directory_id1']
-
         )
     ]
 )
 @pytest.mark.usefixtures('mock_configuration')
-def test_upload_archive(requests_mock, capsys, tmp_path, output_argument,
+def test_upload_archive(requests_mock, capsys, tmp_path, optional_arguments,
                         output):
     """Test uploading archive.
 
@@ -119,7 +118,7 @@ def test_upload_archive(requests_mock, capsys, tmp_path, output_argument,
     :param requests_mock: HTTP request mocker
     :param capsys: captured command output
     :param tmp_path: temporary path for archive file
-    :param output_argument: commandline argument to choose output format
+    :param optional_arguments: list of optional commandline arguments
     :param output: list of expected command output lines
     """
     # Mock all urls that are requested
@@ -169,9 +168,8 @@ def test_upload_archive(requests_mock, capsys, tmp_path, output_argument,
         open_archive.add(file2)
 
     # Post archive to "target" directory
-    upload_rest_api_client.client.main(['upload', str(archive),
-                                        '--target', 'target',
-                                        output_argument])
+    upload_rest_api_client.client.main(['upload', str(archive)]
+                                       + optional_arguments)
 
     # Check output line by line, but skip first line
     captured = capsys.readouterr().out.splitlines()
@@ -215,4 +213,4 @@ def test_upload_archive_to_root(requests_mock, tmp_path):
         open_archive.add(file2)
 
     # Post archive to root directory
-    upload_rest_api_client.client.main(['upload', str(archive), '--no-gtk'])
+    upload_rest_api_client.client.main(['upload', str(archive)])
