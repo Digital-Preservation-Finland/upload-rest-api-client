@@ -159,17 +159,16 @@ def _upload(client, args):
 
     # Generate metadata
     directory = client.generate_directory_metadata(target)
+    if args.output or args.format == 'files':
+        files = client.directory_files(target)
 
     if args.output:
-        files = client.directory_files(target)
         with open(args.output, "w") as f_out:
             for file_ in files:
                 f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
     # Print information about about generated metadata
     if args.format == 'files':
-        if 'files' not in locals():
-            files = client.directory_files(target)
         print("Generated file metadata\n")
         print_format = "{: >45}    {: >45}    {: >32}    {}"
         print(print_format.format(
