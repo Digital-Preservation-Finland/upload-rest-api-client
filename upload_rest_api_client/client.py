@@ -103,10 +103,12 @@ def _parse_args(cli_args):
         help="Path to the file where created identifiers are written"
     )
     upload_parser.add_argument(
-        "-v", "--verbose",
-        action='store_true',
-        help="Print information about subdirectories and files when "
-             "uploading archives."
+        "--format",
+        default='directory',
+        choices=['directory', 'files'],
+        help="Choose output format. Use 'directory' to print only the "
+             "identifier of uploaded directory, or 'files' to print "
+             "information about all files in directory."
     )
     upload_parser.set_defaults(func=_upload)
 
@@ -165,7 +167,7 @@ def _upload(client, args):
                 f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
     # Print information about about generated metadata
-    if args.verbose:
+    if args.format == 'files':
         if 'files' not in locals():
             files = client.directory_files(target)
         print("Generated file metadata\n")

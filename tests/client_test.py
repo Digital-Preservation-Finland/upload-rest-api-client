@@ -96,7 +96,7 @@ def test_browse(requests_mock, capsys, response, output):
              'Directory identifier: directory_id1']
         ),
         (
-            ['--target', 'target', '-v'],
+            ['--target', 'target', '--format', 'files'],
             ['Generated file metadata',
              '']
             + ["%45s    %45s    %32s    %s" % line for line in (
