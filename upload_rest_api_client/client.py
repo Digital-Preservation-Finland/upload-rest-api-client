@@ -197,20 +197,25 @@ class PreIngestFileStorage():
         :param user: username
         :param password: password
         """
-        self.session = requests.Session()
-        self.session.verify = verify
-        self.session.auth = (HTTPBasicAuth(user, password))
-        self.host = host
+        self.verify = verify
+        self.auth = (HTTPBasicAuth(user, password))
         self.archives_api = f"{host}/v1/archives"
         self.metadata_api = f"{host}/v1/metadata"
         self.files_api = f"{host}/v1/files"
+
+    def request(self, method, url, **kwargs):
+        """Send authenticated HTTP request using requests.request."""
+        kwargs['verify'] = self.verify
+        kwargs['auth'] = self.auth
+        return requests.request(method, url, **kwargs)
 
     def browse(self, path):
         """Browse files and directories.
 
         :param path: File/directory path
         """
-        response = self.session.get(
+        response = self.request(
+            'get',
             "{}/{}".format(self.files_api, path.strip('/'))
         )
         response.raise_for_status()
@@ -220,10 +225,12 @@ class PreIngestFileStorage():
         status = "pending"
         polling_url = response.json()["polling_url"]
 
+        response = self.request('get', self.files_api + '/')
+
         while status == "pending":
             sleep(5)
             print('.', end='', flush=True)
-            response = self.session.get(polling_url)
+            response = self.request('get', polling_url)
             try:
                 response.raise_for_status()
             except HTTPError:
@@ -243,7 +250,7 @@ class PreIngestFileStorage():
     def directory_files(self, target_directory):
         """Fetch file metadata for all files in directory."""
         # Get list of all files pre-ingest file storage
-        directory_tree = self.session.get(self.files_api).json()
+        directory_tree = self.request('get', self.files_api).json()
         all_file_paths = list()
         for directory, files in directory_tree.items():
             for file_ in files:
@@ -256,11 +263,12 @@ class PreIngestFileStorage():
         # Get file metadata for files in directory (and subdirectories)
         files = list()
         for file_path in directory_file_paths:
-            file_ = self.session.get(
-                "{}/{}".format(self.files_api, file_path.strip('/'))
+            file_ = self.request(
+                'get', "{}/{}".format(self.files_api, file_path.strip('/'))
             ).json()
             parent_directory \
-                = self.session.get(
+                = self.request(
+                    'get',
                     "{}/{}".format(self.files_api,
                                    os.path.dirname(file_path).strip('/'))
                 ).json()
@@ -285,7 +293,8 @@ class PreIngestFileStorage():
 
         # Upload the package
         with open(source, "rb") as upload_file:
-            response = self.session.post(
+            response = self.request(
+                'post',
                 self.archives_api,
                 params={'dir': target.strip('/')},
                 data=upload_file,
@@ -312,7 +321,8 @@ class PreIngestFileStorage():
         :param source: path to archive on local disk
         :param target: target directory path in pre-ingest file storage
         """
-        response = self.session.post(
+        response = self.request(
+            'post',
             # Character "*" is added to url to enable metadata
             # generation for root directory. See TPASPKT-719 for more
             # information.
@@ -327,8 +337,10 @@ class PreIngestFileStorage():
             raise
         if response.status_code == 202:
             response = self._wait_response(response)
-        return self.session.get("{}/{}".format(self.files_api,
-                                               target.strip('/'))).json()
+        return self.request(
+            'get',
+            "{}/{}".format(self.files_api, target.strip('/'))
+        ).json()
 
 
 def main(cli_args=None):
