@@ -39,7 +39,7 @@ def _parse_conf_file(conf):
     :returns: host, username, password
     """
     if not os.path.isfile(os.path.expanduser(conf)):
-        raise ValueError("Config file '{}' not found".format(conf))
+        raise ValueError(f"Config file '{conf}' not found")
 
     configuration = configparser.ConfigParser()
     configuration.read(os.path.expanduser(conf))
@@ -134,10 +134,10 @@ def _browse(client, args):
     """
     resource = client.browse(args.path)
     for key, value in resource.items():
-        print("{}:".format(key))
+        print(f"{key}:")
         value_list = value if isinstance(value, list) else [value]
         for value_ in value_list:
-            print("    {}".format(value_))
+            print(f"    {value_}")
         print("")
 
 
@@ -155,7 +155,7 @@ def _upload(client, args):
 
     # Upload archive
     client.upload_archive(args.source, target)
-    print("Uploaded '{}'".format(args.source))
+    print(f"Uploaded '{args.source}'")
 
     # Generate metadata
     directory = client.generate_directory_metadata(target)
@@ -201,9 +201,9 @@ class PreIngestFileStorage():
         self.session.verify = verify
         self.session.auth = (HTTPBasicAuth(user, password))
         self.host = host
-        self.archives_api = "{}/v1/archives".format(host)
-        self.metadata_api = "{}/v1/metadata".format(host)
-        self.files_api = "{}/v1/files".format(host)
+        self.archives_api = f"{host}/v1/archives"
+        self.metadata_api = f"{host}/v1/metadata"
+        self.files_api = f"{host}/v1/files"
 
     def browse(self, path):
         """Browse files and directories.
@@ -281,7 +281,7 @@ class PreIngestFileStorage():
         """
         # Check that the provided file is either a zip or tar archive
         if not tarfile.is_tarfile(source) and not zipfile.is_zipfile(source):
-            raise ValueError("Unsupported file: '{}'".format(source))
+            raise ValueError(f"Unsupported file: '{source}'")
 
         # Upload the package
         with open(source, "rb") as upload_file:

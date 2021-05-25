@@ -80,8 +80,7 @@ def test_browse(requests_mock, capsys, response, output):
     :param response: JSON resposne from API
     :param output: list of expected command output lines
     """
-    requests_mock.get("{}/files/".format(API_URL),
-                      json=response)
+    requests_mock.get(f"{API_URL}/files/", json=response)
     upload_rest_api_client.client.main(['browse', '/'])
     captured = capsys.readouterr()
     assert captured.out == output
@@ -122,9 +121,9 @@ def test_upload_archive(requests_mock, capsys, tmp_path, optional_arguments,
     :param output: list of expected command output lines
     """
     # Mock all urls that are requested
-    requests_mock.post('{}/archives'.format(API_URL))
-    requests_mock.post('{}/metadata/target*'.format(API_URL))
-    requests_mock.get('{}/files/target'.format(API_URL),
+    requests_mock.post(f'{API_URL}/archives')
+    requests_mock.post(f'{API_URL}/metadata/target*')
+    requests_mock.get(f'{API_URL}/files/target',
                       json={
                           "directories": [],
                           "files": [
@@ -133,24 +132,24 @@ def test_upload_archive(requests_mock, capsys, tmp_path, optional_arguments,
                           ],
                           "identifier": 'directory_id1'
                       })
-    requests_mock.get('{}/files/'.format(API_URL),
+    requests_mock.get(f'{API_URL}/files/',
                       json={
                           "directories": ['target'],
                           "files": [],
                           "identifier": 'directory_id2'
                       })
-    requests_mock.get('{}/files'.format(API_URL),
+    requests_mock.get(f'{API_URL}/files',
                       json={
                           "/": [],
                           "/target": ['file1', 'file2']
                       })
-    requests_mock.get('{}/files/target/file1'.format(API_URL),
+    requests_mock.get(f'{API_URL}/files/target/file1',
                       json={
                           "file_path": "/target/file1",
                           "metax_identifier": "file_id1",
                           "md5": "checksum1"
                       })
-    requests_mock.get('{}/files/target/file2'.format(API_URL),
+    requests_mock.get(f'{API_URL}/files/target/file2',
                       json={
                           "file_path": "/target/file2",
                           "metax_identifier": "file_id2",
@@ -190,9 +189,9 @@ def test_upload_archive_to_root(requests_mock, tmp_path):
     :param output: list of expected command output lines
     """
     # Mock all urls that are requested
-    requests_mock.post('{}/archives'.format(API_URL))
-    requests_mock.post('{}/metadata/*'.format(API_URL))
-    requests_mock.get('{}/files/'.format(API_URL),
+    requests_mock.post(f'{API_URL}/archives')
+    requests_mock.post(f'{API_URL}/metadata/*')
+    requests_mock.get(f'{API_URL}/files/',
                       json={
                           "directories": [],
                           "files": [
