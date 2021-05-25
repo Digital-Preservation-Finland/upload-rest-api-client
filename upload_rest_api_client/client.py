@@ -331,7 +331,7 @@ class PreIngestFileStorage():
                                                target.strip('/'))).json()
 
 
-def main(cli_args):
+def main(cli_args=None):
     """Parse command line arguments and run the chosen function.
 
     :param cli_args: command line arguments
