@@ -102,14 +102,6 @@ def _parse_args(cli_args):
         "-o", "--output",
         help="Path to the file where created identifiers are written"
     )
-    upload_parser.add_argument(
-        "--format",
-        default='directory',
-        choices=['directory', 'files'],
-        help="Choose output format. Use 'directory' to print only the "
-             "identifier of uploaded directory, or 'files' to print "
-             "information about all files in directory."
-    )
     upload_parser.set_defaults(func=_upload)
 
     # Setup bash auto completion
@@ -159,31 +151,15 @@ def _upload(client, args):
 
     # Generate metadata
     directory = client.generate_directory_metadata(target)
-    if args.output or args.format == 'files':
-        files = client.directory_files(target)
 
     if args.output:
+        files = client.directory_files(target)
         with open(args.output, "w") as f_out:
             for file_ in files:
                 f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
-    # Print information about about generated metadata
-    if args.format == 'files':
-        print("Generated file metadata\n")
-        print_format = "{: >45}    {: >45}    {: >32}    {}"
-        print(print_format.format(
-            "parent_dir",
-            "identifier",
-            "checksum_value",
-            "file_path"
-        ))
-        for file_ in files:
-            print(print_format.format(*file_.values()))
-
-    else:
-        print("Generated metadata for directory: {}\n"
-              "Directory identifier: {}".format(target,
-                                                directory['identifier']))
+    print("Generated metadata for directory: {}\n"
+          "Directory identifier: {}".format(target, directory['identifier']))
 
 
 class PreIngestFileStorage():

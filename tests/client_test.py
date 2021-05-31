@@ -86,29 +86,8 @@ def test_browse(requests_mock, capsys, response, output):
     assert captured.out == output
 
 
-@pytest.mark.parametrize(
-    ('optional_arguments', 'output'),
-    [
-        (
-            ['--target', 'target'],
-            ['Generated metadata for directory: /target',
-             'Directory identifier: directory_id1']
-        ),
-        (
-            ['--target', 'target', '--format', 'files'],
-            ['Generated file metadata',
-             '']
-            + ["%45s    %45s    %32s    %s" % line for line in (
-                ("parent_dir", "identifier", "checksum_value", "file_path"),
-                ('directory_id1', 'file_id1', 'checksum1', '/target/file1'),
-                ('directory_id1', 'file_id2', 'checksum2', '/target/file2')
-            )]
-        )
-    ]
-)
 @pytest.mark.usefixtures('mock_configuration')
-def test_upload_archive(requests_mock, capsys, tmp_path, optional_arguments,
-                        output):
+def test_upload_archive(requests_mock, capsys, tmp_path):
     """Test uploading archive.
 
     Test that HTTP requests are sent to correct urls, and command
@@ -117,8 +96,6 @@ def test_upload_archive(requests_mock, capsys, tmp_path, optional_arguments,
     :param requests_mock: HTTP request mocker
     :param capsys: captured command output
     :param tmp_path: temporary path for archive file
-    :param optional_arguments: list of optional commandline arguments
-    :param output: list of expected command output lines
     """
     # Mock all urls that are requested
     requests_mock.post(f'{API_URL}/archives')
@@ -167,12 +144,14 @@ def test_upload_archive(requests_mock, capsys, tmp_path, optional_arguments,
         open_archive.add(file2)
 
     # Post archive to "target" directory
-    upload_rest_api_client.client.main(['upload', str(archive)]
-                                       + optional_arguments)
+    upload_rest_api_client.client.main(['upload', str(archive),
+                                        '--target', 'target'])
 
-    # Check output line by line, but skip first line
-    captured = capsys.readouterr().out.splitlines()
-    assert captured[1:] == output
+    # Check output
+    assert capsys.readouterr().out \
+        == (f"Uploaded '{tmp_path}/archive.tar'\n"
+            "Generated metadata for directory: /target\n"
+            "Directory identifier: directory_id1\n")
 
 
 @pytest.mark.usefixtures('mock_configuration')
