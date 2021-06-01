@@ -2,6 +2,7 @@
 from __future__ import print_function
 import os
 import sys
+import uuid
 import json
 import configparser
 import argparse
@@ -96,7 +97,6 @@ def _parse_args(cli_args):
     upload_parser.add_argument(
         "--target",
         help="directory where the uploaded archive is extracted",
-        default='/'
     )
     upload_parser.add_argument(
         "-o", "--output",
@@ -142,8 +142,16 @@ def _upload(client, args):
     :param client: Pre-ingest file storage client
     :param args: Upload arguments
     """
-    # Ensure that target directory path starts with slash
-    target = "/{}".format(args.target.strip('/'))
+    # Create a directory with unique name under root directory if user
+    # has not defined target directory. This must be done to
+    # prevent the user accidentally creating a dataset that contains
+    # files from previous uploads see ticket TPASPKT-749 for more
+    # information.
+    if not args.target:
+        target = f'/{uuid.uuid4().hex}'
+    else:
+        # Ensure that target directory path starts with slash
+        target = "/{}".format(args.target.strip('/'))
 
     # Upload archive
     client.upload_archive(args.source, target)

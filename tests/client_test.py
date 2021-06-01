@@ -1,5 +1,6 @@
 """Unit tests for `client` module."""
 
+import re
 import tarfile
 
 import pytest
@@ -7,6 +8,25 @@ import pytest
 import upload_rest_api_client.client
 
 API_URL = 'http://localhost/v1'
+
+
+@pytest.fixture(scope='function', name='archive')
+def sample_archive(tmp_path):
+    """Create a sample tar archive in temporary directory.
+
+    :tmp_path: temporary directory
+    :returns: path to tar archive
+    """
+    file1 = tmp_path / 'file1'
+    file1.write_text('foo')
+    file2 = tmp_path / 'file2'
+    file2.write_text('bar')
+    tmp_archive = tmp_path / 'archive.tar'
+    with tarfile.open(tmp_archive, 'w') as open_archive:
+        open_archive.add(file1)
+        open_archive.add(file2)
+
+    return tmp_archive
 
 
 @pytest.mark.usefixtures('mock_configuration')
@@ -87,7 +107,7 @@ def test_browse(requests_mock, capsys, response, output):
 
 
 @pytest.mark.usefixtures('mock_configuration')
-def test_upload_archive(requests_mock, capsys, tmp_path):
+def test_upload_archive(requests_mock, capsys, archive):
     """Test uploading archive.
 
     Test that HTTP requests are sent to correct urls, and command
@@ -95,7 +115,7 @@ def test_upload_archive(requests_mock, capsys, tmp_path):
 
     :param requests_mock: HTTP request mocker
     :param capsys: captured command output
-    :param tmp_path: temporary path for archive file
+    :param archive: path to sample archive file
     """
     # Mock all urls that are requested
     requests_mock.post(f'{API_URL}/archives')
@@ -133,39 +153,26 @@ def test_upload_archive(requests_mock, capsys, tmp_path):
                           "md5": "checksum2"
                       })
 
-    # Create archive that contains two files
-    file1 = tmp_path / 'file1'
-    file1.write_text('foo')
-    file2 = tmp_path / 'file2'
-    file2.write_text('bar')
-    archive = tmp_path / 'archive.tar'
-    with tarfile.open(archive, 'w') as open_archive:
-        open_archive.add(file1)
-        open_archive.add(file2)
-
     # Post archive to "target" directory
     upload_rest_api_client.client.main(['upload', str(archive),
                                         '--target', 'target'])
 
     # Check output
     assert capsys.readouterr().out \
-        == (f"Uploaded '{tmp_path}/archive.tar'\n"
+        == (f"Uploaded '{str(archive)}'\n"
             "Generated metadata for directory: /target\n"
             "Directory identifier: directory_id1\n")
 
 
 @pytest.mark.usefixtures('mock_configuration')
-def test_upload_archive_to_root(requests_mock, tmp_path):
+def test_upload_archive_to_root(requests_mock, archive):
     """Test uploading archive to root directory.
 
-    Test that HTTP requests are sent to correct urls when no target
-    directory is given as argument.
+    Test that HTTP requests are sent to correct urls when root directory
+    is used as target directory.
 
     :param requests_mock: HTTP request mocker
-    :param capsys: captured command output
-    :param tmp_path: temporary path for archive file
-    :param output_argument: commandline argument to choose output format
-    :param output: list of expected command output lines
+    :param archive: path to sample archive file
     """
     # Mock all urls that are requested
     requests_mock.post(f'{API_URL}/archives')
@@ -180,15 +187,33 @@ def test_upload_archive_to_root(requests_mock, tmp_path):
                           "identifier": 'directory_id1'
                       })
 
-    # Create archive that contains two files
-    file1 = tmp_path / 'file1'
-    file1.write_text('foo')
-    file2 = tmp_path / 'file2'
-    file2.write_text('bar')
-    archive = tmp_path / 'archive.tar'
-    with tarfile.open(archive, 'w') as open_archive:
-        open_archive.add(file1)
-        open_archive.add(file2)
+    # Post archive to root directory
+    upload_rest_api_client.client.main(['upload', str(archive),
+                                        '--target', '/'])
+
+
+@pytest.mark.usefixtures('mock_configuration')
+def test_upload_archive_without_target(requests_mock, archive):
+    """Test uploading archive without --target parameter.
+
+    Test that HTTP requests are sent to correct urls when no target
+    directory is given as argument.
+
+    :param requests_mock: HTTP request mocker
+    :param archive: path to sample archive file
+    """
+    # Mock all urls that are requested
+    requests_mock.post(re.compile(f'{API_URL}/archives'))
+    requests_mock.post(re.compile(f'{API_URL}/metadata/[A-Za-z0-9]*'))
+    requests_mock.get(re.compile(f'{API_URL}/files/[A-Za-z0-9]'),
+                      json={
+                          "directories": [],
+                          "files": [
+                              "file1",
+                              "file2",
+                          ],
+                          "identifier": 'directory_id1'
+                      })
 
     # Post archive to root directory
     upload_rest_api_client.client.main(['upload', str(archive)])
