@@ -1,6 +1,5 @@
 """Unit tests for `client` module."""
 
-import re
 import tarfile
 
 import pytest
@@ -11,8 +10,10 @@ API_URL = 'http://localhost/v1'
 
 
 @pytest.fixture(scope='function', name='archive')
-def sample_archive(tmp_path):
+def sample_file_archive(tmp_path):
     """Create a sample tar archive in temporary directory.
+
+    The archive contains two files.
 
     :tmp_path: temporary directory
     :returns: path to tar archive
@@ -20,6 +21,29 @@ def sample_archive(tmp_path):
     file1 = tmp_path / 'file1'
     file1.write_text('foo')
     file2 = tmp_path / 'file2'
+    file2.write_text('bar')
+    tmp_archive = tmp_path / 'archive.tar'
+    with tarfile.open(tmp_archive, 'w') as open_archive:
+        open_archive.add(file1)
+        open_archive.add(file2)
+
+    return tmp_archive
+
+
+@pytest.fixture(scope='function', name='directory_archive')
+def sample_directory_archive(tmp_path):
+    """Create a sample tar archive in temporary directory.
+
+    The archive contains two directories.
+
+    :tmp_path: temporary directory
+    :returns: path to tar archive
+    """
+    file1 = tmp_path / 'dir1' / 'file1'
+    file1.parent.mkdir()
+    file1.write_text('foo')
+    file2 = tmp_path / 'dir2' / 'file2'
+    file2.parent.mkdir()
     file2.write_text('bar')
     tmp_archive = tmp_path / 'archive.tar'
     with tarfile.open(tmp_archive, 'w') as open_archive:
@@ -160,8 +184,7 @@ def test_upload_archive(requests_mock, capsys, archive):
     # Check output
     assert capsys.readouterr().out \
         == (f"Uploaded '{str(archive)}'\n"
-            "Generated metadata for directory: /target\n"
-            "Directory identifier: directory_id1\n")
+            "Generated metadata for directory: /target (identifier: directory_id1)\n")
 
 
 @pytest.mark.usefixtures('mock_configuration')
@@ -193,27 +216,43 @@ def test_upload_archive_to_root(requests_mock, archive):
 
 
 @pytest.mark.usefixtures('mock_configuration')
-def test_upload_archive_without_target(requests_mock, archive):
-    """Test uploading archive without --target parameter.
-
-    Test that HTTP requests are sent to correct urls when no target
-    directory is given as argument.
+def test_upload_archive_with_directories(requests_mock, capsys,
+                                         directory_archive):
+    """Test uploading archive that contains directories.
 
     :param requests_mock: HTTP request mocker
-    :param archive: path to sample archive file
+    :param directory_archive: path to sample archive file
     """
     # Mock all urls that are requested
-    requests_mock.post(re.compile(f'{API_URL}/archives'))
-    requests_mock.post(re.compile(f'{API_URL}/metadata/[A-Za-z0-9]*'))
-    requests_mock.get(re.compile(f'{API_URL}/files/[A-Za-z0-9]'),
+    requests_mock.post(f'{API_URL}/archives')
+    requests_mock.post(f'{API_URL}/metadata/*')
+    requests_mock.get(f'{API_URL}/files/',
+                      json={
+                          "directories": ['dir1', 'dir2'],
+                          "files": [],
+                          "identifier": 'directory_id0'
+                      })
+    requests_mock.get(f'{API_URL}/files/dir1',
                       json={
                           "directories": [],
-                          "files": [
-                              "file1",
-                              "file2",
-                          ],
+                          "files": ['file1'],
                           "identifier": 'directory_id1'
+                      })
+    requests_mock.get(f'{API_URL}/files/dir2',
+                      json={
+                          "directories": [],
+                          "files": ['file1'],
+                          "identifier": 'directory_id2'
                       })
 
     # Post archive to root directory
-    upload_rest_api_client.client.main(['upload', str(archive)])
+    upload_rest_api_client.client.main(['upload', str(directory_archive)])
+
+    # Check output
+    assert capsys.readouterr().out \
+        == (f"Uploaded '{str(directory_archive)}'\n"
+            "Generated metadata for directory: / (identifier: directory_id0)\n"
+            "\n"
+            "The directory contains subdirectories:\n"
+            "dir1 (identifier: directory_id1)\n"
+            "dir2 (identifier: directory_id2)\n")
