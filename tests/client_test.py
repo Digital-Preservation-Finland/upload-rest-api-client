@@ -184,18 +184,28 @@ def test_upload_archive(requests_mock, capsys, archive):
     # Check output
     assert capsys.readouterr().out \
         == (f"Uploaded '{str(archive)}'\n"
-            "Generated metadata for directory: /target (identifier: directory_id1)\n")
+            "Generated metadata for directory: /target "
+            "(identifier: directory_id1)\n")
 
 
 @pytest.mark.usefixtures('mock_configuration')
-def test_upload_archive_to_root(requests_mock, archive):
+@pytest.mark.parametrize(
+    'arguments',
+    (
+        [],
+        ['--target', '/']
+    )
+)
+def test_upload_archive_to_root(requests_mock, capsys, archive, arguments):
     """Test uploading archive to root directory.
 
     Test that HTTP requests are sent to correct urls when root directory
     is used as target directory.
 
     :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
     :param archive: path to sample archive file
+    :param arguments: extra commandline arguments
     """
     # Mock all urls that are requested
     requests_mock.post(f'{API_URL}/archives')
@@ -211,8 +221,12 @@ def test_upload_archive_to_root(requests_mock, archive):
                       })
 
     # Post archive to root directory
-    upload_rest_api_client.client.main(['upload', str(archive),
-                                        '--target', '/'])
+    upload_rest_api_client.client.main(['upload', str(archive)]+arguments)
+
+    # Check output
+    assert capsys.readouterr().out \
+        == (f"Uploaded '{str(archive)}'\n"
+            "Generated metadata for directory: /\n")
 
 
 @pytest.mark.usefixtures('mock_configuration')
@@ -221,6 +235,7 @@ def test_upload_archive_with_directories(requests_mock, capsys,
     """Test uploading archive that contains directories.
 
     :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
     :param directory_archive: path to sample archive file
     """
     # Mock all urls that are requested
@@ -251,7 +266,7 @@ def test_upload_archive_with_directories(requests_mock, capsys,
     # Check output
     assert capsys.readouterr().out \
         == (f"Uploaded '{str(directory_archive)}'\n"
-            "Generated metadata for directory: / (identifier: directory_id0)\n"
+            "Generated metadata for directory: /\n"
             "\n"
             "The directory contains subdirectories:\n"
             "dir1 (identifier: directory_id1)\n"

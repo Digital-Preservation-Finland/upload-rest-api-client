@@ -158,9 +158,13 @@ def _upload(client, args):
             for file_ in files:
                 f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
 
-    print("Generated metadata for directory: {} (identifier: {})".format(
-        target, directory['identifier']
-    ))
+    # Print path and identifier of uploaded directory. Root directory
+    # identifier is NOT printed to avoid root directory accidentally
+    # being included in a dataset.
+    message = f"Generated metadata for directory: {target}"
+    if target != "/":
+        message += " (identifier: {})".format(directory['identifier'])
+    print(message)
 
     if directory['directories']:
         # Print list of subdirectories
