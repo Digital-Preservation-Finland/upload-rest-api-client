@@ -110,6 +110,46 @@ def sample_directory_archive(tmp_path):
              "\n"
              "identifier:\n"
              "    None\n\n"),
+        ),
+        # A file
+        (
+            {
+                "file_path": "foo",
+                "md5": "bar",
+                "metax_identifier": "baz",
+                "timestamp": "2021-06-21T12:45:28+00:00"
+            },
+            ("file_path:\n"
+             "    foo\n"
+             "\n"
+             "md5:\n"
+             "    bar\n"
+             "\n"
+             "metax_identifier:\n"
+             "    baz\n"
+             "\n"
+             "timestamp:\n"
+             "    2021-06-21T12:45:28+00:00\n\n")
+        ),
+        # A file without identifier
+        (
+            {
+                "file_path": "foo",
+                "md5": "bar",
+                "metax_identifier": None,
+                "timestamp": "2021-06-21T12:45:28+00:00"
+            },
+            ("file_path:\n"
+             "    foo\n"
+             "\n"
+             "md5:\n"
+             "    bar\n"
+             "\n"
+             "metax_identifier:\n"
+             "    None\n"
+             "\n"
+             "timestamp:\n"
+             "    2021-06-21T12:45:28+00:00\n\n")
         )
     ]
 )
@@ -124,8 +164,8 @@ def test_browse(requests_mock, capsys, response, output):
     :param response: JSON resposne from API
     :param output: list of expected command output lines
     """
-    requests_mock.get(f"{API_URL}/files/", json=response)
-    upload_rest_api_client.client.main(['browse', '/'])
+    requests_mock.get(f"{API_URL}/files/some_path", json=response)
+    upload_rest_api_client.client.main(['browse', '/some_path'])
     captured = capsys.readouterr()
     assert captured.out == output
 
