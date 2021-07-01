@@ -109,7 +109,7 @@ class PreIngestFileStorage():
                 ).json()
             files.append({
                 "parent_directory_identifier": parent_directory["identifier"],
-                "identifier": file_["metax_identifier"],
+                "identifier": file_["identifier"],
                 "checksum": file_["md5"],
                 "path": file_["file_path"]
             })

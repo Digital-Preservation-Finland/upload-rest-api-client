@@ -59,13 +59,13 @@ def test_directory_files(requests_mock, target, result):
 
     requests_mock.get('http://localhost/v1/files/file1',
                       json={"file_path": "/files1",
-                            "metax_identifier": 'foo3',
+                            "identifier": 'foo3',
                             "md5": "bar3",
                             "timestamp": "2021-06-21T12:45:28+00:00"})
 
     requests_mock.get('http://localhost/v1/files/directory1/file2',
                       json={"file_path": "/directory1/files2",
-                            "metax_identifier": 'foo4',
+                            "identifier": 'foo4',
                             "md5": "bar4",
                             "timestamp": "2021-06-21T12:45:28+00:00"})
 

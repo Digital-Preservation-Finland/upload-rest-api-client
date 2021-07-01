@@ -116,7 +116,7 @@ def sample_directory_archive(tmp_path):
             {
                 "file_path": "foo",
                 "md5": "bar",
-                "metax_identifier": "baz",
+                "identifier": "baz",
                 "timestamp": "2021-06-21T12:45:28+00:00"
             },
             ("file_path:\n"
@@ -125,7 +125,7 @@ def sample_directory_archive(tmp_path):
              "md5:\n"
              "    bar\n"
              "\n"
-             "metax_identifier:\n"
+             "identifier:\n"
              "    baz\n"
              "\n"
              "timestamp:\n"
@@ -136,7 +136,7 @@ def sample_directory_archive(tmp_path):
             {
                 "file_path": "foo",
                 "md5": "bar",
-                "metax_identifier": None,
+                "identifier": None,
                 "timestamp": "2021-06-21T12:45:28+00:00"
             },
             ("file_path:\n"
@@ -145,7 +145,7 @@ def sample_directory_archive(tmp_path):
              "md5:\n"
              "    bar\n"
              "\n"
-             "metax_identifier:\n"
+             "identifier:\n"
              "    None\n"
              "\n"
              "timestamp:\n"
@@ -207,13 +207,13 @@ def test_upload_archive(requests_mock, capsys, archive):
     requests_mock.get(f'{API_URL}/files/target/file1',
                       json={
                           "file_path": "/target/file1",
-                          "metax_identifier": "file_id1",
+                          "identifier": "file_id1",
                           "md5": "checksum1"
                       })
     requests_mock.get(f'{API_URL}/files/target/file2',
                       json={
                           "file_path": "/target/file2",
-                          "metax_identifier": "file_id2",
+                          "identifier": "file_id2",
                           "md5": "checksum2"
                       })
 
