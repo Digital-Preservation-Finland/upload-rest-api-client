@@ -1,11 +1,13 @@
 """Pre ingest file storage client module."""
 from __future__ import print_function
+
+import hashlib
+import json
 import os
 import sys
-import json
 import tarfile
+import warnings
 import zipfile
-import hashlib
 from time import sleep
 
 import requests
@@ -32,22 +34,43 @@ def _md5_digest(fpath):
 class PreIngestFileStorage():
     """Pre-ingest file storage client."""
 
-    def __init__(self, verify, host, user, password):
+    def __init__(self, verify, config):
         """Initialize pre-ingest file storage client.
 
         :param bool verify: Use SSL verification
-        :param host: API url
-        :param user: username
-        :param password: password
+        :param dict config: Configuration dict containing the fields
+                            `host`, `user`, `password` and `token`
         """
+        host = config["host"]
+
         self.session = requests.Session()
         self.session.verify = verify
-        self.session.auth = (HTTPBasicAuth(user, password))
         self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=5))
         self.archives_api = f"{host}/v1/archives"
         self.metadata_api = f"{host}/v1/metadata"
         self.files_api = f"{host}/v1/files"
         self.users_api = f"{host}/v1/users"
+
+        self._configure_auth(config)
+
+    def _configure_auth(self, config):
+        """
+        Configure authentication, using either a token or an
+        username + password combination, preferring token if available.
+        """
+        if config["token"]:
+            self.session.headers["Authorization"] = f"Bearer {config['token']}"
+        else:
+            self.session.auth = HTTPBasicAuth(
+                config["user"], config["password"]
+            )
+            warnings.warn(
+                "User + password authentication is deprecated. Please "
+                "create a token using the Fairdata Digital Preservation "
+                "System web UI and set it to 'upload/token' field in the "
+                "configuration file.",
+                UserWarning
+            )
 
     def get_projects(self):
         """Retrieve dictionary of projects accessible to the user"""

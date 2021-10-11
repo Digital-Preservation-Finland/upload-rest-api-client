@@ -53,6 +53,66 @@ def sample_directory_archive(tmp_path):
     return tmp_archive
 
 
+@pytest.mark.parametrize(
+    "config",
+    [
+        {
+            "host": "http://localhost",
+            "user": "",
+            "password": "",
+            "token": "fddps-fake-token"
+        },
+        {
+            "host": "http://localhost",
+            "user": "test_user",
+            "password": "test_password",
+            "token": ""
+        }
+    ]
+)
+def test_authentication(monkeypatch, requests_mock, config):
+    """
+    Test that correct headers are sent in requests depending on what
+    authentication method is configured.
+    """
+    monkeypatch.setattr(
+        upload_rest_api_client.client, "_parse_conf_file",
+        lambda conf: config
+    )
+
+    requests_mock.get(
+        f"{API_URL}/users/projects",
+        json={
+            "projects": [
+                {
+                    "identifier": "test_project_a",
+                    "used_quota": 1024,
+                    "quota": 1024000
+                },
+                {
+                    "identifier": "test_project_b",
+                    "used_quota": 4096,
+                    "quota": 4096000
+                }
+            ]
+        }
+    )
+
+    upload_rest_api_client.client.main(['list-projects'])
+
+    # Inspect the request
+    last_request = requests_mock.request_history[0]
+
+    if config["token"]:
+        # Bearer authentication used
+        assert last_request.headers["Authorization"] == \
+            "Bearer fddps-fake-token"
+    else:
+        # Basic authentication used
+        assert last_request.headers["Authorization"] == \
+            "Basic dGVzdF91c2VyOnRlc3RfcGFzc3dvcmQ="
+
+
 @pytest.mark.usefixtures('mock_configuration')
 @pytest.mark.parametrize(
     ("response", "output"),

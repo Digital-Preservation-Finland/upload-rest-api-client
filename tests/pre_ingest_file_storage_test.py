@@ -82,8 +82,13 @@ def test_directory_files(requests_mock, target, result):
     )
 
     # Test the method for targe directory
-    client = PreIngestFileStorage(False,
-                                  'http://localhost',
-                                  'testuser',
-                                  'password')
+    client = PreIngestFileStorage(
+        False,
+        {
+            'host': 'http://localhost',
+            'user': 'testuser',
+            'password': 'password',
+            'token': ''
+        }
+    )
     assert client.directory_files('test_project', target) == result

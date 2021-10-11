@@ -23,11 +23,12 @@ def _parse_conf_file(conf):
 
     configuration = configparser.ConfigParser()
     configuration.read(os.path.expanduser(conf))
-    return (
-        configuration.get("upload", "host"),
-        configuration.get("upload", "user"),
-        configuration.get("upload", "password"),
-    )
+    return {
+        "host": configuration["upload"].get("host"),
+        "user": configuration["upload"].get("user"),
+        "password": configuration["upload"].get("password"),
+        "token": configuration["upload"].get("token")
+    }
 
 
 def _parse_args(cli_args):
@@ -205,9 +206,9 @@ def main(cli_args=None):
     args = _parse_args(cli_args)
 
     verify = not args.insecure
-    host, user, password = _parse_conf_file(args.config)
+    config = _parse_conf_file(args.config)
 
-    client = PreIngestFileStorage(verify, host, user, password)
+    client = PreIngestFileStorage(verify, config)
     args.func(client, args)
 
 
