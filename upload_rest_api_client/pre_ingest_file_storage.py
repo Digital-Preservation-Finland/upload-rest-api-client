@@ -47,14 +47,22 @@ class PreIngestFileStorage():
         self.archives_api = f"{host}/v1/archives"
         self.metadata_api = f"{host}/v1/metadata"
         self.files_api = f"{host}/v1/files"
+        self.users_api = f"{host}/v1/users"
 
-    def browse(self, path):
+    def get_projects(self):
+        """Retrieve dictionary of projects accessible to the user"""
+        response = self.session.get(f"{self.users_api}/projects")
+        response.raise_for_status()
+        return response.json()["projects"]
+
+    def browse(self, project, path):
         """Browse files and directories.
 
+        :param project: Project identifier
         :param path: File/directory path
         """
         response = self.session.get(
-            "{}/{}".format(self.files_api, path.strip('/'))
+            "{}/{}/{}".format(self.files_api, project, path.strip('/'))
         )
         response.raise_for_status()
         return response.json()
@@ -83,10 +91,13 @@ class PreIngestFileStorage():
 
         return response
 
-    def directory_files(self, target_directory):
+    def directory_files(self, project, target_directory):
         """Fetch file metadata for all files in directory."""
-        # Get list of all files pre-ingest file storage
-        directory_tree = self.session.get(self.files_api).json()
+        # Get tree of all files pre-ingest file storage
+        directory_tree = self.session.get(
+            f"{self.files_api}/{project}",
+            params={"all": "true"}
+        ).json()
         all_file_paths = list()
         for directory, files in directory_tree.items():
             for file_ in files:
@@ -100,12 +111,17 @@ class PreIngestFileStorage():
         files = list()
         for file_path in directory_file_paths:
             file_ = self.session.get(
-                "{}/{}".format(self.files_api, file_path.strip('/'))
+                "{}/{}/{}".format(
+                    self.files_api, project, file_path.strip('/')
+                )
             ).json()
             parent_directory \
                 = self.session.get(
-                    "{}/{}".format(self.files_api,
-                                   os.path.dirname(file_path).strip('/'))
+                    "{}/{}/{}".format(
+                        self.files_api,
+                        project,
+                        os.path.dirname(file_path).strip('/')
+                    )
                 ).json()
             files.append({
                 "parent_directory_identifier": parent_directory["identifier"],
@@ -116,9 +132,10 @@ class PreIngestFileStorage():
 
         return files
 
-    def upload_archive(self, source, target):
+    def upload_archive(self, project, source, target):
         """Upload archive to pre-ingest file storage.
 
+        :param project: target project ID
         :param source: path to archive on local disk
         :param target: target directory path in pre-ingest file storage
         """
@@ -129,7 +146,7 @@ class PreIngestFileStorage():
         # Upload the package
         with open(source, "rb") as upload_file:
             response = self.session.post(
-                self.archives_api,
+                f"{self.archives_api}/{project}",
                 params={'dir': target.strip('/'), 'md5': _md5_digest(source)},
                 data=upload_file,
             )
@@ -148,17 +165,19 @@ class PreIngestFileStorage():
         if response.status_code == 202:
             response = self._wait_response(response)
 
-    def generate_directory_metadata(self, target):
+    def generate_directory_metadata(self, project, target):
         """Generate metadata for directory.
 
-        :param source: path to archive on local disk
+        :param project: target project ID
         :param target: target directory path in pre-ingest file storage
         """
         response = self.session.post(
             # Character "*" is added to url to enable metadata
             # generation for root directory. See TPASPKT-719 for more
             # information.
-            "{}/{}*".format(self.metadata_api, target.strip('/'))
+            "{}/{}/{}*".format(
+                self.metadata_api, project, target.strip('/')
+            )
         )
         try:
             response.raise_for_status()
@@ -169,5 +188,6 @@ class PreIngestFileStorage():
             raise
         if response.status_code == 202:
             response = self._wait_response(response)
-        return self.session.get("{}/{}".format(self.files_api,
-                                               target.strip('/'))).json()
+        return self.session.get(
+            "{}/{}/{}".format(self.files_api, project, target.strip('/'))
+        ).json()

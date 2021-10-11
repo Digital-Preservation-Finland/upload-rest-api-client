@@ -44,34 +44,46 @@ def test_directory_files(requests_mock, target, result):
     # two files:
     #     /file1
     #     /directory1/file2
-    requests_mock.get('http://localhost/v1/files',
-                      json={"/": ["file1"], "/directory1": ["file2"]})
+    requests_mock.get(
+        'http://localhost/v1/files/test_project?all=true',
+        json={"/": ["file1"], "/directory1": ["file2"]},
+        complete_qs=True
+    )
 
-    requests_mock.get('http://localhost/v1/files/',
-                      json={"directories": ["directory1"],
-                            "files": ["file1"],
-                            "identifier": "foo1"})
+    requests_mock.get(
+        'http://localhost/v1/files/test_project/',
+        json={
+            "directories": ["directory1"],
+            "files": ["file1"],
+            "identifier": "foo1"
+        },
+        complete_qs=True
+    )
 
-    requests_mock.get('http://localhost/v1/files/directory1',
+    requests_mock.get('http://localhost/v1/files/test_project/directory1',
                       json={"directories": [],
                             "files": ["file2"],
                             "identifier": "foo2"})
 
-    requests_mock.get('http://localhost/v1/files/file1',
+    requests_mock.get('http://localhost/v1/files/test_project/file1',
                       json={"file_path": "/files1",
                             "identifier": 'foo3',
                             "md5": "bar3",
                             "timestamp": "2021-06-21T12:45:28+00:00"})
 
-    requests_mock.get('http://localhost/v1/files/directory1/file2',
-                      json={"file_path": "/directory1/files2",
-                            "identifier": 'foo4',
-                            "md5": "bar4",
-                            "timestamp": "2021-06-21T12:45:28+00:00"})
+    requests_mock.get(
+        'http://localhost/v1/files/test_project/directory1/file2',
+        json={
+            "file_path": "/directory1/files2",
+            "identifier": 'foo4',
+            "md5": "bar4",
+            "timestamp": "2021-06-21T12:45:28+00:00"
+        }
+    )
 
     # Test the method for targe directory
     client = PreIngestFileStorage(False,
                                   'http://localhost',
                                   'testuser',
                                   'password')
-    assert client.directory_files(target) == result
+    assert client.directory_files('test_project', target) == result

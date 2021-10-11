@@ -1,11 +1,13 @@
 """Upload-rest-api-client CLI."""
 from __future__ import print_function
+
+import argparse
+import configparser
 import os
 import sys
-import configparser
-import argparse
 
 import argcomplete
+from tabulate import tabulate
 
 from upload_rest_api_client.pre_ingest_file_storage import PreIngestFileStorage
 
@@ -53,9 +55,19 @@ def _parse_args(cli_args):
     parser.set_defaults(func=None)
     subparsers = parser.add_subparsers(title="command")
 
+    # List projects
+    list_projects_parser = subparsers.add_parser(
+        "list-projects", help="list accessible projects"
+    )
+    list_projects_parser.set_defaults(func=_list_projects)
+
     # Browse parser
     browse_parser = subparsers.add_parser(
         "browse", help="browse files in pre-ingest file storage"
+    )
+    browse_parser.add_argument(
+        "project",
+        help="project to browse"
     )
     browse_parser.add_argument(
         "path",
@@ -66,6 +78,10 @@ def _parse_args(cli_args):
     # Upload parser
     upload_parser = subparsers.add_parser(
         "upload", help="upload package to the pre-ingest file storage"
+    )
+    upload_parser.add_argument(
+        "project",
+        help="project to upload files to"
     )
     upload_parser.add_argument(
         "source",
@@ -93,6 +109,26 @@ def _parse_args(cli_args):
     return args
 
 
+def _list_projects(client, args):
+    """List projects accessible to the user using client.
+
+    :param client: Pre-ingest file storage client
+    :param args: Arguments
+    """
+    projects = client.get_projects()
+
+    if not projects:
+        print("No projects available")
+        return
+
+    data = [
+        (project["identifier"], project["used_quota"], project["quota"])
+        for project in projects
+    ]
+
+    print(tabulate(data, headers=("Project", "Used quota", "Quota")))
+
+
 def _browse(client, args):
     """Browse pre-ingest storage using client.
 
@@ -102,7 +138,7 @@ def _browse(client, args):
     :param client: Pre-ingest file storage client
     :param args: Browsing arguments
     """
-    resource = client.browse(args.path)
+    resource = client.browse(args.project, args.path)
     for key, value in resource.items():
         print(f"{key}:")
         value_list = value if isinstance(value, list) else [value]
@@ -124,14 +160,21 @@ def _upload(client, args):
     target = "/{}".format(args.target.strip('/'))
 
     # Upload archive
-    client.upload_archive(args.source, target)
+    client.upload_archive(
+        project=args.project,
+        source=args.source,
+        target=target
+    )
     print(f"Uploaded '{args.source}'")
 
     # Generate metadata
-    directory = client.generate_directory_metadata(target)
+    directory = client.generate_directory_metadata(
+        project=args.project,
+        target=target
+    )
 
     if args.output:
-        files = client.directory_files(target)
+        files = client.directory_files(args.project, target)
         with open(args.output, "w") as f_out:
             for file_ in files:
                 f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
@@ -148,8 +191,9 @@ def _upload(client, args):
         # Print list of subdirectories
         print("\nThe directory contains subdirectories:")
         for subdirectory in directory['directories']:
-            identifier \
-                = client.browse(f"{target}/{subdirectory}")["identifier"]
+            identifier = client.browse(
+                args.project, f"{target}/{subdirectory}"
+            )["identifier"]
             print(f"{subdirectory} (identifier: {identifier})")
 
 

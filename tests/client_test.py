@@ -164,8 +164,10 @@ def test_browse(requests_mock, capsys, response, output):
     :param response: JSON resposne from API
     :param output: list of expected command output lines
     """
-    requests_mock.get(f"{API_URL}/files/some_path", json=response)
-    upload_rest_api_client.client.main(['browse', '/some_path'])
+    requests_mock.get(f"{API_URL}/files/test_project/some_path", json=response)
+    upload_rest_api_client.client.main(
+        ['browse', 'test_project', '/some_path']
+    )
     captured = capsys.readouterr()
     assert captured.out == output
 
@@ -182,9 +184,9 @@ def test_upload_archive(requests_mock, capsys, archive):
     :param archive: path to sample archive file
     """
     # Mock all urls that are requested
-    requests_mock.post(f'{API_URL}/archives')
-    requests_mock.post(f'{API_URL}/metadata/target*')
-    requests_mock.get(f'{API_URL}/files/target',
+    requests_mock.post(f'{API_URL}/archives/test_project')
+    requests_mock.post(f'{API_URL}/metadata/test_project/target*')
+    requests_mock.get(f'{API_URL}/files/test_project/target',
                       json={
                           "directories": [],
                           "files": [
@@ -193,7 +195,7 @@ def test_upload_archive(requests_mock, capsys, archive):
                           ],
                           "identifier": 'directory_id1'
                       })
-    requests_mock.get(f'{API_URL}/files/',
+    requests_mock.get(f'{API_URL}/files/test_project',
                       json={
                           "directories": ['target'],
                           "files": [],
@@ -204,13 +206,13 @@ def test_upload_archive(requests_mock, capsys, archive):
                           "/": [],
                           "/target": ['file1', 'file2']
                       })
-    requests_mock.get(f'{API_URL}/files/target/file1',
+    requests_mock.get(f'{API_URL}/files/test_project/target/file1',
                       json={
                           "file_path": "/target/file1",
                           "identifier": "file_id1",
                           "md5": "checksum1"
                       })
-    requests_mock.get(f'{API_URL}/files/target/file2',
+    requests_mock.get(f'{API_URL}/files/test_project/target/file2',
                       json={
                           "file_path": "/target/file2",
                           "identifier": "file_id2",
@@ -218,8 +220,10 @@ def test_upload_archive(requests_mock, capsys, archive):
                       })
 
     # Post archive to "target" directory
-    upload_rest_api_client.client.main(['upload', str(archive),
-                                        '--target', 'target'])
+    upload_rest_api_client.client.main([
+        'upload', 'test_project', str(archive),
+        '--target', 'target'
+    ])
 
     # Check output
     assert capsys.readouterr().out \
@@ -248,9 +252,9 @@ def test_upload_archive_to_root(requests_mock, capsys, archive, arguments):
     :param arguments: extra commandline arguments
     """
     # Mock all urls that are requested
-    requests_mock.post(f'{API_URL}/archives')
-    requests_mock.post(f'{API_URL}/metadata/*')
-    requests_mock.get(f'{API_URL}/files/',
+    requests_mock.post(f'{API_URL}/archives/test_project')
+    requests_mock.post(f'{API_URL}/metadata/test_project/*')
+    requests_mock.get(f'{API_URL}/files/test_project/',
                       json={
                           "directories": [],
                           "files": [
@@ -261,7 +265,9 @@ def test_upload_archive_to_root(requests_mock, capsys, archive, arguments):
                       })
 
     # Post archive to root directory
-    upload_rest_api_client.client.main(['upload', str(archive)]+arguments)
+    upload_rest_api_client.client.main(
+        ['upload', 'test_project', str(archive)] + arguments
+    )
 
     # Check output
     assert capsys.readouterr().out \
@@ -279,21 +285,21 @@ def test_upload_archive_with_directories(requests_mock, capsys,
     :param directory_archive: path to sample archive file
     """
     # Mock all urls that are requested
-    requests_mock.post(f'{API_URL}/archives')
-    requests_mock.post(f'{API_URL}/metadata/*')
-    requests_mock.get(f'{API_URL}/files/',
+    requests_mock.post(f'{API_URL}/archives/test_project')
+    requests_mock.post(f'{API_URL}/metadata/test_project/*')
+    requests_mock.get(f'{API_URL}/files/test_project/',
                       json={
                           "directories": ['dir1', 'dir2'],
                           "files": [],
                           "identifier": 'directory_id0'
                       })
-    requests_mock.get(f'{API_URL}/files/dir1',
+    requests_mock.get(f'{API_URL}/files/test_project/dir1',
                       json={
                           "directories": [],
                           "files": ['file1'],
                           "identifier": 'directory_id1'
                       })
-    requests_mock.get(f'{API_URL}/files/dir2',
+    requests_mock.get(f'{API_URL}/files/test_project/dir2',
                       json={
                           "directories": [],
                           "files": ['file1'],
@@ -301,7 +307,9 @@ def test_upload_archive_with_directories(requests_mock, capsys,
                       })
 
     # Post archive to root directory
-    upload_rest_api_client.client.main(['upload', str(directory_archive)])
+    upload_rest_api_client.client.main(
+        ['upload', 'test_project', str(directory_archive)]
+    )
 
     # Check output
     assert capsys.readouterr().out \
@@ -311,3 +319,44 @@ def test_upload_archive_with_directories(requests_mock, capsys,
             "The directory contains subdirectories:\n"
             "dir1 (identifier: directory_id1)\n"
             "dir2 (identifier: directory_id2)\n")
+
+
+@pytest.mark.usefixtures('mock_configuration')
+def test_list_projects(requests_mock, capsys):
+    """Test list projects
+    """
+    requests_mock.get(
+        f"{API_URL}/users/projects",
+        json={
+            "projects": [
+                {
+                    "identifier": "test_project_a",
+                    "used_quota": 1024,
+                    "quota": 1024000
+                },
+                {
+                    "identifier": "test_project_b",
+                    "used_quota": 4096,
+                    "quota": 4096000
+                }
+            ]
+        }
+    )
+
+    upload_rest_api_client.client.main(['list-projects'])
+
+    out = capsys.readouterr().out
+
+    # Header shown in correct order
+    assert out.index("Project") < out.index("Used quota") < out.index("Quota")
+
+    assert (
+        out.index("test_project_a")
+        < out.index("1024")
+        < out.index("1024000")
+    )
+    assert (
+        out.index("test_project_b")
+        < out.index("4096")
+        < out.index("4096000")
+    )

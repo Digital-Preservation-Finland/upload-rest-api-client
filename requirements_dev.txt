@@ -1,3 +1,5 @@
 requests
 argcomplete
+tabulate
 requests_mock
+pytest

@@ -12,7 +12,8 @@ def main():
         version=get_version(),
         install_requires=[
             "requests",
-            "argcomplete"
+            "argcomplete",
+            "tabulate",
         ],
         entry_points={
             "console_scripts": [
