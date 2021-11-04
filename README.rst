@@ -21,8 +21,9 @@ with the editor editor of your choice, e.g.::
 Usage
 ~~~~~
 
-upload-rest-api-client requires you to specify a project identifier when
-using commands.
+upload-rest-api-client requires you to either specify a project identifier when
+using commands or define a default project in the :code:`~/.upload.cfg`
+configuration file.
 
 You can check a list of accessible projects and their corresponding quotas by
 running::
@@ -32,7 +33,7 @@ running::
 upload-rest-api-client can be used to send tar or zip archives. If you want to
 upload package :code:`package.zip`, simply run::
 
-    upload-client upload <project> package.zip
+    upload-client upload --project <project> package.zip
 
 
 Copyright

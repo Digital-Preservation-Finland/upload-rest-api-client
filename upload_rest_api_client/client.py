@@ -27,8 +27,33 @@ def _parse_conf_file(conf):
         "host": configuration["upload"].get("host"),
         "user": configuration["upload"].get("user"),
         "password": configuration["upload"].get("password"),
-        "token": configuration["upload"].get("token")
+        "token": configuration["upload"].get("token"),
+        "default_project": configuration["upload"].get("default_project")
     }
+
+
+def _get_project_name(args, client):
+    """Return the project name from command-line arguments or the config
+    object.
+
+    If no project is provided as a CLI parameter, check for `default_project`
+    in configuration file instead. If none are provided, print a warning.
+
+    :param args: command line arguments
+    :param client: pre-ingest file storage client
+    """
+    if args.project:
+        return args.project
+
+    if client.default_project:
+        return client.default_project
+
+    raise RuntimeError(
+        "Project name was not provided!\n\n"
+        "You can provide the project name using --project command-line option "
+        "or by using the `upload/default_project` field in the configuration "
+        "file."
+    )
 
 
 def _parse_args(cli_args):
@@ -67,12 +92,13 @@ def _parse_args(cli_args):
         "browse", help="browse files in pre-ingest file storage"
     )
     browse_parser.add_argument(
-        "project",
-        help="project to browse"
-    )
-    browse_parser.add_argument(
         "path",
         help="path to file or directory"
+    )
+    browse_parser.add_argument(
+        "--project",
+        help="project to browse",
+        default=None
     )
     browse_parser.set_defaults(func=_browse)
 
@@ -81,12 +107,13 @@ def _parse_args(cli_args):
         "upload", help="upload package to the pre-ingest file storage"
     )
     upload_parser.add_argument(
-        "project",
-        help="project to upload files to"
-    )
-    upload_parser.add_argument(
         "source",
         help="path to the uploaded tar or zip archive"
+    )
+    upload_parser.add_argument(
+        "--project",
+        help="project to upload files to",
+        default=None
     )
     upload_parser.add_argument(
         "--target",
@@ -139,7 +166,9 @@ def _browse(client, args):
     :param client: Pre-ingest file storage client
     :param args: Browsing arguments
     """
-    resource = client.browse(args.project, args.path)
+    project = _get_project_name(args=args, client=client)
+
+    resource = client.browse(project, args.path)
     for key, value in resource.items():
         print(f"{key}:")
         value_list = value if isinstance(value, list) else [value]
@@ -157,12 +186,14 @@ def _upload(client, args):
     :param client: Pre-ingest file storage client
     :param args: Upload arguments
     """
+    project = _get_project_name(args=args, client=client)
+
     # Ensure that target directory path starts with slash
     target = "/{}".format(args.target.strip('/'))
 
     # Upload archive
     client.upload_archive(
-        project=args.project,
+        project=project,
         source=args.source,
         target=target
     )
@@ -170,12 +201,12 @@ def _upload(client, args):
 
     # Generate metadata
     directory = client.generate_directory_metadata(
-        project=args.project,
+        project=project,
         target=target
     )
 
     if args.output:
-        files = client.directory_files(args.project, target)
+        files = client.directory_files(project, target)
         with open(args.output, "w") as f_out:
             for file_ in files:
                 f_out.write("{}\t{}\t{}\t{}\n".format(*file_.values()))
@@ -193,7 +224,7 @@ def _upload(client, args):
         print("\nThe directory contains subdirectories:")
         for subdirectory in directory['directories']:
             identifier = client.browse(
-                args.project, f"{target}/{subdirectory}"
+                project, f"{target}/{subdirectory}"
             )["identifier"]
             print(f"{subdirectory} (identifier: {identifier})")
 

@@ -51,6 +51,11 @@ class PreIngestFileStorage():
         self.files_api = f"{host}/v1/files"
         self.users_api = f"{host}/v1/users"
 
+        if config.get("default_project"):
+            self.default_project = config["default_project"]
+        else:
+            self.default_project = None
+
         self._configure_auth(config)
 
     def _configure_auth(self, config):

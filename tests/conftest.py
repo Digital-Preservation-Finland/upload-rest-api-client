@@ -12,6 +12,7 @@ def mock_configuration(monkeypatch):
             "host": "http://localhost",
             "user": "testuser",
             "password": "password",
-            "token": ""
+            "token": "",
+            "default_project": "default_test_project"
         }
     )

@@ -226,10 +226,33 @@ def test_browse(requests_mock, capsys, response, output):
     """
     requests_mock.get(f"{API_URL}/files/test_project/some_path", json=response)
     upload_rest_api_client.client.main(
-        ['browse', 'test_project', '/some_path']
+        ['browse', '--project', 'test_project', '/some_path']
     )
     captured = capsys.readouterr()
     assert captured.out == output
+
+
+@pytest.mark.usefixtures("mock_configuration")
+def test_browse_default_project(requests_mock, capsys):
+    """Test that browse command uses the default project if found in the
+    configuration file
+    """
+    requests_mock.get(
+        f"{API_URL}/files/default_test_project/some_path",
+        json={
+            "directories": [],
+            "files": [],
+            "identifier": 'testidentifier'
+        }
+    )
+    upload_rest_api_client.client.main(
+        ['browse', '/some_path']
+    )
+    captured = capsys.readouterr()
+    assert (
+        "directories:\n\nfiles:\n\nidentifier:\n    testidentifier\n\n"
+        in captured.out
+    )
 
 
 @pytest.mark.usefixtures('mock_configuration')
@@ -281,7 +304,7 @@ def test_upload_archive(requests_mock, capsys, archive):
 
     # Post archive to "target" directory
     upload_rest_api_client.client.main([
-        'upload', 'test_project', str(archive),
+        'upload', '--project', 'test_project', str(archive),
         '--target', 'target'
     ])
 
@@ -326,7 +349,7 @@ def test_upload_archive_to_root(requests_mock, capsys, archive, arguments):
 
     # Post archive to root directory
     upload_rest_api_client.client.main(
-        ['upload', 'test_project', str(archive)] + arguments
+        ['upload', '--project', 'test_project', str(archive)] + arguments
     )
 
     # Check output
@@ -368,7 +391,7 @@ def test_upload_archive_with_directories(requests_mock, capsys,
 
     # Post archive to root directory
     upload_rest_api_client.client.main(
-        ['upload', 'test_project', str(directory_archive)]
+        ['upload', '--project', 'test_project', str(directory_archive)]
     )
 
     # Check output
@@ -379,6 +402,38 @@ def test_upload_archive_with_directories(requests_mock, capsys,
             "The directory contains subdirectories:\n"
             "dir1 (identifier: directory_id1)\n"
             "dir2 (identifier: directory_id2)\n")
+
+
+@pytest.mark.usefixtures('mock_configuration')
+def test_upload_default_project(requests_mock, capsys,
+                                directory_archive):
+    """
+    Test running the `upload` command and ensure that the default project is
+    used.
+
+    :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
+    :param directory_archive: path to sample archive file
+    """
+    # Mock all urls that are requested
+    requests_mock.post(f'{API_URL}/archives/default_test_project')
+    requests_mock.post(f'{API_URL}/metadata/default_test_project/*')
+    requests_mock.get(f'{API_URL}/files/default_test_project/',
+                      json={
+                          "directories": [],
+                          "files": [],
+                          "identifier": 'directory_id0'
+                      })
+
+    # Post archive to root directory
+    upload_rest_api_client.client.main(
+        ['upload', str(directory_archive)]
+    )
+
+    # Check output
+    assert capsys.readouterr().out \
+        == (f"Uploaded '{str(directory_archive)}'\n"
+            "Generated metadata for directory: /\n")
 
 
 @pytest.mark.usefixtures('mock_configuration')
@@ -420,3 +475,29 @@ def test_list_projects(requests_mock, capsys):
         < out.index("4096")
         < out.index("4096000")
     )
+
+
+@pytest.mark.parametrize("args", [
+    ["upload", "test_file.tar"],
+    ["browse", "test_project"]
+])
+def test_command_no_default_project_provided(monkeypatch, capsys, args):
+    """
+    Test that the client will print a warning if no project name is provided
+    and no default is configured.
+    """
+    monkeypatch.setattr(
+        upload_rest_api_client.client, "_parse_conf_file",
+        lambda conf: {
+            "host": "http://localhost",
+            "user": "testuser",
+            "password": "password",
+            "token": "",
+            "default_config": ""
+        }
+    )
+
+    with pytest.raises(RuntimeError) as exc:
+        upload_rest_api_client.client.main(args)
+
+    assert "Project name was not provided" in str(exc.value)
