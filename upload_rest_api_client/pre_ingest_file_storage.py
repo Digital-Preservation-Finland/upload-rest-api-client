@@ -31,6 +31,21 @@ def _md5_digest(fpath):
     return md5_hash.hexdigest()
 
 
+class HTTPBearerAuth(requests.auth.AuthBase):
+    """
+    Authorization class for Requests that implements Bearer authorization.
+
+    This is used instead of changing headers directly to prevent requests
+    from using the `.netrc` file if that is found on the system.
+    """
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, request):
+        request.headers["Authorization"] = f"Bearer {self.token}"
+        return request
+
+
 class PreIngestFileStorage():
     """Pre-ingest file storage client."""
 
@@ -64,7 +79,7 @@ class PreIngestFileStorage():
         username + password combination, preferring token if available.
         """
         if config["token"]:
-            self.session.headers["Authorization"] = f"Bearer {config['token']}"
+            self.session.auth = HTTPBearerAuth(config["token"])
         else:
             self.session.auth = HTTPBasicAuth(
                 config["user"], config["password"]
