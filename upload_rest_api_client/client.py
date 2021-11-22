@@ -75,7 +75,7 @@ def _parse_args(cli_args):
         "-c", "--config", default="~/.upload.cfg",
         help=(
             "Path to the configuration file. Configuration file should "
-            "include host, username and password in section [upload]."
+            "include host and token in section [upload]."
         )
     )
     parser.set_defaults(func=None)
