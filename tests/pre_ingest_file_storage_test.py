@@ -2,8 +2,9 @@
 
 import pytest
 
-from upload_rest_api_client.pre_ingest_file_storage import PreIngestFileStorage
-
+from upload_rest_api_client.pre_ingest_file_storage import (
+    PreIngestFileStorage, PreIngestFileNotFoundError
+)
 
 @pytest.mark.parametrize(
     ('target', 'result'),
@@ -92,3 +93,33 @@ def test_directory_files(requests_mock, target, result):
         }
     )
     assert client.directory_files('test_project', target) == result
+
+def test_browsing_nonexistent_file(requests_mock):
+    """Test that browsing a file that does not exist raises a
+    FileNotFoundError.
+
+    :param requests_mock: HTTP requests mocker
+    """
+    host = "http://localhost"
+    project = "test_project"
+    path = "invalid_filepath"
+
+    requests_mock.get(
+        f"{host}/v1/files/{project}/{path}",
+        json={"status": 404, "error": "File not found"},
+        status_code=404
+    )
+
+    client = PreIngestFileStorage(
+        False,
+        {
+            "host": host,
+            "user": "testuser",
+            "password": "password",
+            "token": ""
+        }
+    )
+
+    with pytest.raises(PreIngestFileNotFoundError) as error:
+        client.browse(project, path)
+    assert "File not found" in str(error.value)

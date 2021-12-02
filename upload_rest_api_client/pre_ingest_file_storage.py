@@ -46,6 +46,13 @@ class HTTPBearerAuth(requests.auth.AuthBase):
         return request
 
 
+class PreIngestFileNotFoundError(Exception):
+    """Exception raised when a file cannot be found in the pre-ingest
+    file storage.
+    """
+    pass
+
+
 class PreIngestFileStorage():
     """Pre-ingest file storage client."""
 
@@ -103,11 +110,28 @@ class PreIngestFileStorage():
 
         :param project: Project identifier
         :param path: File/directory path
+        :raises: PreIngestFileNotFoundError when a browsed file
+            is not found in the pre-ingest file storage
+        :raises: HTTPError for HTTP errors
         """
         response = self.session.get(
             "{}/{}/{}".format(self.files_api, project, path.strip('/'))
         )
+
+        # Catch the error of trying to browse a file that does not exist,
+        # separating it from page not found errors
+        if response.status_code == 404:
+            try:
+                content = response.json()
+                raise PreIngestFileNotFoundError(content["error"])
+            except json.JSONDecodeError:
+                # upload-rest-api sends error messages in JSON form.
+                # If decoding JSON fails it is some other HTTP error,
+                # so raise HTTPError
+                response.raise_for_status()
+
         response.raise_for_status()
+
         return response.json()
 
     def _wait_response(self, response):

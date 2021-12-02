@@ -232,6 +232,30 @@ def test_browse(requests_mock, capsys, response, output):
     assert captured.out == output
 
 
+@pytest.mark.usefixtures('mock_configuration')
+def test_browsing_nonexistent_file(requests_mock, capsys):
+    """Test that using browse command for a nonexistent file shows a sensible
+    error message.
+
+    :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
+    """
+    project = "test_project"
+    path = "invalid_filepath"
+
+    requests_mock.get(
+        f"{API_URL}/files/{project}/{path}",
+        json={"status": 404, "error": "File not found"},
+        status_code=404
+    )
+
+    upload_rest_api_client.client.main(
+        ['browse', '--project', project, path]
+    )
+    captured = capsys.readouterr()
+    assert "File not found" in captured.out
+
+
 @pytest.mark.usefixtures("mock_configuration")
 def test_browse_default_project(requests_mock, capsys):
     """Test that browse command uses the default project if found in the
