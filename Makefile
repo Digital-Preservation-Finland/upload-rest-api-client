@@ -7,5 +7,3 @@ github:
             if [ ! -f ~/.upload.cfg ]; then \
                 cp include/upload.cfg ~/.upload.cfg; \
             fi
-test:
-	python -m pytest tests
