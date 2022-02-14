@@ -238,13 +238,15 @@ class PreIngestFileStorage():
         :param project: target project ID
         :param target: target directory path in pre-ingest file storage
         """
+        target = target.strip('/')
+
+        # Character "*" is added to url to enable metadata
+        # generation for root directory. See TPASPKT-719 for more
+        # information.
+        metadata_target = "*" if target == "" else target
+
         response = self.session.post(
-            # Character "*" is added to url to enable metadata
-            # generation for root directory. See TPASPKT-719 for more
-            # information.
-            "{}/{}/{}*".format(
-                self.metadata_api, project, target.strip('/')
-            )
+            f"{self.metadata_api}/{project}/{metadata_target}"
         )
         try:
             response.raise_for_status()
@@ -256,5 +258,5 @@ class PreIngestFileStorage():
         if response.status_code == 202:
             response = self._wait_response(response)
         return self.session.get(
-            "{}/{}/{}".format(self.files_api, project, target.strip('/'))
+            f"{self.files_api}/{project}/{target.strip('/')}"
         ).json()

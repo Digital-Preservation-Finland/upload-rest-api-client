@@ -292,7 +292,7 @@ def test_upload_archive(requests_mock, capsys, archive):
     """
     # Mock all urls that are requested
     requests_mock.post(f'{API_URL}/archives/test_project')
-    requests_mock.post(f'{API_URL}/metadata/test_project/target*')
+    requests_mock.post(f'{API_URL}/metadata/test_project/target')
     requests_mock.get(f'{API_URL}/files/test_project/target',
                       json={
                           "directories": [],
