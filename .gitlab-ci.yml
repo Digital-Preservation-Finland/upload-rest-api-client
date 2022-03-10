@@ -2,6 +2,7 @@
 
 variables:
   CI_PYTHON_3: "yes"
+  CI_SKIP_COVERAGE: "yes"
 
 include:
   - project: 'dpres/gitlab-ci-pipeline'
