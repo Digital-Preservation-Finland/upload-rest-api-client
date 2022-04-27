@@ -6,6 +6,7 @@ from upload_rest_api_client.pre_ingest_file_storage import (
     PreIngestFileStorage, PreIngestFileNotFoundError
 )
 
+
 @pytest.mark.parametrize(
     ('target', 'result'),
     [
@@ -94,6 +95,7 @@ def test_directory_files(requests_mock, target, result):
     )
     assert client.directory_files('test_project', target) == result
 
+
 def test_browsing_nonexistent_file(requests_mock):
     """Test that browsing a file that does not exist raises a
     FileNotFoundError.
@@ -123,3 +125,38 @@ def test_browsing_nonexistent_file(requests_mock):
     with pytest.raises(PreIngestFileNotFoundError) as error:
         client.browse(project, path)
     assert "File not found" in str(error.value)
+
+
+def test_delete(requests_mock):
+    """Test deleting resources from pre-ingest file-storage.
+
+    :param requests_mock: HTTP requests mocker
+    """
+    host = "http://localhost"
+
+    response = {
+        "file_path": "/filepath",
+        "message": "deleted",
+        "metax": {
+            "deleted_files_count": 1
+        }
+    }
+
+    adapter = requests_mock.delete(
+        f"{host}/v1/files/test_project/filepath",
+        json=response,
+        status_code=200
+    )
+
+    client = PreIngestFileStorage(
+        False,
+        {
+            "host": host,
+            "user": "",
+            "password": "",
+            "token": "test_token"
+        }
+    )
+
+    client.delete("test_project", "filepath")
+    assert adapter.called

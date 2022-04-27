@@ -260,3 +260,29 @@ class PreIngestFileStorage():
         return self.session.get(
             f"{self.files_api}/{project}/{target.strip('/')}"
         ).json()
+
+    def delete(self, project, path):
+        """Delete a file or directory from pre-ingest file storage.
+
+        Deletes also the metadata of the files.
+
+        :param project: target project ID
+        :param path: path in pre-ingest file storage to the file or directory
+                     that is to be deleted.
+        """
+        path = path.strip("/")
+        response = self.session.delete(
+            f"{self.files_api}/{project}/{path}"
+        )
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            if response.headers["content-type"] == "application/json":
+                print(json.dumps(response.json(), indent=4))
+                sys.exit(1)
+            raise
+
+        # When deleting directories the metadata of the files is deleted in a
+        # pollable task. Wait for the task to finish.
+        if response.status_code == 202:
+            self._wait_response(response)
