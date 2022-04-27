@@ -128,6 +128,21 @@ def _parse_args(cli_args):
     )
     upload_parser.set_defaults(func=_upload)
 
+    # Delete parser
+    delete_parser = subparsers.add_parser(
+        "delete", help="delete files from pre-ingest file storage"
+    )
+    delete_parser.add_argument(
+        "--project",
+        help="project where files are deleted from",
+        default=None
+    )
+    delete_parser.add_argument(
+        "path",
+        help="path to the file or directory that is deleted"
+    )
+    delete_parser.set_defaults(func=_delete)
+
     # Setup bash auto completion
     argcomplete.autocomplete(parser)
 
@@ -234,6 +249,13 @@ def _upload(client, args):
                 project, f"{target}/{subdirectory}"
             )["identifier"]
             print(f"{subdirectory} (identifier: {identifier})")
+
+
+def _delete(client, args):
+    """Delete resources and their metadata from pre-ingest file storage."""
+    project = _get_project_name(args=args, client=client)
+    client.delete(project, args.path)
+    print(f"Deleted '{args.path}' and all associated metadata.")
 
 
 def main(cli_args=None):

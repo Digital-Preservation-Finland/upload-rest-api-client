@@ -525,3 +525,34 @@ def test_command_no_default_project_provided(monkeypatch, capsys, args):
         upload_rest_api_client.client.main(args)
 
     assert "Project name was not provided" in str(exc.value)
+
+
+@pytest.mark.usefixtures('mock_configuration')
+def test_delete(requests_mock, capsys):
+    """Test delete command.
+
+    Test that HTTP requests are sent to correct urls, and command
+    produces expected output.
+
+    :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
+    """
+    response = {
+        "file_path": "/test_path.txt",
+        "message": "deleted",
+        "metax": {
+            "deleted_files_count": 1
+        }
+    }
+
+    requests_mock.delete(
+        f"{API_URL}/files/test_project/test_path.txt",
+        json=response,
+        status_code=200
+    )
+    upload_rest_api_client.client.main(
+        ["delete", "--project", "test_project", "/test_path.txt"]
+    )
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "Deleted '/test_path.txt' and all associated metadata.\n")
