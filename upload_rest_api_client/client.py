@@ -3,15 +3,15 @@ from __future__ import print_function
 
 import argparse
 import configparser
+import json
 import os
 import sys
 
 import argcomplete
+from requests.exceptions import HTTPError
 from tabulate import tabulate
 
-from upload_rest_api_client.pre_ingest_file_storage import (
-    PreIngestFileStorage, PreIngestFileNotFoundError
-)
+from upload_rest_api_client.pre_ingest_file_storage import PreIngestFileStorage
 
 
 def _parse_conf_file(conf):
@@ -184,12 +184,7 @@ def _browse(client, args):
     :param args: Browsing arguments
     """
     project = _get_project_name(args=args, client=client)
-
-    try:
-        resource = client.browse(project, args.path)
-    except PreIngestFileNotFoundError as error:
-        print(error)
-        return
+    resource = client.browse(project, args.path)
 
     for key, value in resource.items():
         print(f"{key}:")
@@ -269,7 +264,15 @@ def main(cli_args=None):
     config = _parse_conf_file(args.config)
 
     client = PreIngestFileStorage(verify, config)
-    args.func(client, args)
+
+    try:
+        args.func(client, args)
+    except HTTPError as exc:
+        if exc.response.headers["content-type"] == "application/json":
+            print(f"Error when performing request to {exc.request.url}:")
+            print(json.dumps(exc.response.json(), indent=4))
+            sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":

@@ -2,9 +2,7 @@
 from __future__ import print_function
 
 import hashlib
-import json
 import os
-import sys
 import tarfile
 import warnings
 import zipfile
@@ -13,7 +11,6 @@ from time import sleep
 import requests
 import urllib3
 from requests.auth import HTTPBasicAuth
-from requests.exceptions import HTTPError
 
 
 def _md5_digest(fpath):
@@ -46,13 +43,6 @@ class HTTPBearerAuth(requests.auth.AuthBase):
         return request
 
 
-class PreIngestFileNotFoundError(Exception):
-    """Exception raised when a file cannot be found in the pre-ingest
-    file storage.
-    """
-    pass
-
-
 class PreIngestFileStorage():
     """Pre-ingest file storage client."""
 
@@ -68,6 +58,13 @@ class PreIngestFileStorage():
         self.session = requests.Session()
         self.session.verify = verify
         self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=5))
+
+        # Automatically run 'raise_for_status' for each response
+        def check_status(resp, **_):
+            """Check status for each response"""
+            resp.raise_for_status()
+        self.session.hooks["response"] = [check_status]
+
         self.archives_api = f"{host}/v1/archives"
         self.metadata_api = f"{host}/v1/metadata"
         self.files_api = f"{host}/v1/files"
@@ -102,7 +99,6 @@ class PreIngestFileStorage():
     def get_projects(self):
         """Retrieve dictionary of projects accessible to the user"""
         response = self.session.get(f"{self.users_api}/projects")
-        response.raise_for_status()
         return response.json()["projects"]
 
     def browse(self, project, path):
@@ -118,20 +114,6 @@ class PreIngestFileStorage():
             "{}/{}/{}".format(self.files_api, project, path.strip('/'))
         )
 
-        # Catch the error of trying to browse a file that does not exist,
-        # separating it from page not found errors
-        if response.status_code == 404:
-            try:
-                content = response.json()
-                raise PreIngestFileNotFoundError(content["error"])
-            except json.JSONDecodeError:
-                # upload-rest-api sends error messages in JSON form.
-                # If decoding JSON fails it is some other HTTP error,
-                # so raise HTTPError
-                response.raise_for_status()
-
-        response.raise_for_status()
-
         return response.json()
 
     def _wait_response(self, response):
@@ -142,19 +124,7 @@ class PreIngestFileStorage():
             sleep(5)
             print('.', end='', flush=True)
             response = self.session.get(polling_url)
-            try:
-                response.raise_for_status()
-            except HTTPError:
-                if response.headers["content-type"] == "application/json":
-                    print(json.dumps(response.json(), indent=4))
-                    sys.exit(1)
-                raise
             status = response.json()['status']
-
-        print()
-        if status == "error":
-            print(json.dumps(response.json(), indent=4))
-            sys.exit(1)
 
         return response
 
@@ -221,14 +191,6 @@ class PreIngestFileStorage():
             # Print InsecureRequestWarning only once
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-            try:
-                response.raise_for_status()
-            except HTTPError:
-                if response.headers["content-type"] == "application/json":
-                    print(json.dumps(response.json(), indent=4))
-                    sys.exit(1)
-                raise
-
         if response.status_code == 202:
             response = self._wait_response(response)
 
@@ -248,15 +210,10 @@ class PreIngestFileStorage():
         response = self.session.post(
             f"{self.metadata_api}/{project}/{metadata_target}"
         )
-        try:
-            response.raise_for_status()
-        except HTTPError:
-            if response.headers["content-type"] == "application/json":
-                print(json.dumps(response.json(), indent=4))
-                sys.exit(1)
-            raise
+
         if response.status_code == 202:
             response = self._wait_response(response)
+
         return self.session.get(
             f"{self.files_api}/{project}/{target.strip('/')}"
         ).json()
@@ -274,13 +231,6 @@ class PreIngestFileStorage():
         response = self.session.delete(
             f"{self.files_api}/{project}/{path}"
         )
-        try:
-            response.raise_for_status()
-        except HTTPError:
-            if response.headers["content-type"] == "application/json":
-                print(json.dumps(response.json(), indent=4))
-                sys.exit(1)
-            raise
 
         # When deleting directories the metadata of the files is deleted in a
         # pollable task. Wait for the task to finish.

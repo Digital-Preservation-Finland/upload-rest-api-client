@@ -246,14 +246,16 @@ def test_browsing_nonexistent_file(requests_mock, capsys):
     requests_mock.get(
         f"{API_URL}/files/{project}/{path}",
         json={"status": 404, "error": "File not found"},
+        headers={"content-type": "application/json"},
         status_code=404
     )
 
-    upload_rest_api_client.client.main(
-        ['browse', '--project', project, path]
-    )
-    captured = capsys.readouterr()
-    assert "File not found" in captured.out
+    with pytest.raises(SystemExit):
+        upload_rest_api_client.client.main(
+            ['browse', '--project', project, path]
+        )
+        captured = capsys.readouterr()
+        assert "File not found" in captured.out
 
 
 @pytest.mark.usefixtures("mock_configuration")
