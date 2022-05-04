@@ -1,9 +1,10 @@
 """Unit tests for `pre_ingest_file_storage` module."""
 
 import pytest
-from requests.exceptions import HTTPError
 
-from upload_rest_api_client.pre_ingest_file_storage import PreIngestFileStorage
+from upload_rest_api_client.pre_ingest_file_storage import (
+    PreIngestFileStorage, PreIngestFileNotFoundError
+)
 
 
 @pytest.mark.parametrize(
@@ -108,6 +109,7 @@ def test_browsing_nonexistent_file(requests_mock):
     requests_mock.get(
         f"{host}/v1/files/{project}/{path}",
         json={"status": 404, "error": "File not found"},
+        headers={"content-type": "application/json"},
         status_code=404
     )
 
@@ -121,8 +123,9 @@ def test_browsing_nonexistent_file(requests_mock):
         }
     )
 
-    with pytest.raises(HTTPError):
+    with pytest.raises(PreIngestFileNotFoundError) as error:
         client.browse(project, path)
+        assert "File not found" in str(error.value)
 
 
 def test_delete(requests_mock):

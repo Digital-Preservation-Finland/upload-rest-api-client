@@ -11,7 +11,9 @@ import argcomplete
 from requests.exceptions import HTTPError
 from tabulate import tabulate
 
-from upload_rest_api_client.pre_ingest_file_storage import PreIngestFileStorage
+from upload_rest_api_client.pre_ingest_file_storage import (
+    PreIngestFileStorage, PreIngestFileNotFoundError
+)
 
 
 def _parse_conf_file(conf):
@@ -184,7 +186,11 @@ def _browse(client, args):
     :param args: Browsing arguments
     """
     project = _get_project_name(args=args, client=client)
-    resource = client.browse(project, args.path)
+    try:
+        resource = client.browse(project, args.path)
+    except PreIngestFileNotFoundError as error:
+        print(error)
+        return
 
     for key, value in resource.items():
         print(f"{key}:")

@@ -9,6 +9,7 @@ import zipfile
 from time import sleep
 
 import requests
+from requests.exceptions import HTTPError
 import urllib3
 from requests.auth import HTTPBasicAuth
 
@@ -41,6 +42,13 @@ class HTTPBearerAuth(requests.auth.AuthBase):
     def __call__(self, request):
         request.headers["Authorization"] = f"Bearer {self.token}"
         return request
+
+
+class PreIngestFileNotFoundError(Exception):
+    """Exception raised when a file cannot be found in the pre-ingest
+    file storage.
+    """
+    pass
 
 
 class PreIngestFileStorage():
@@ -110,9 +118,20 @@ class PreIngestFileStorage():
             is not found in the pre-ingest file storage
         :raises: HTTPError for HTTP errors
         """
-        response = self.session.get(
-            "{}/{}/{}".format(self.files_api, project, path.strip('/'))
-        )
+        try:
+            response = self.session.get(
+                "{}/{}/{}".format(self.files_api, project, path.strip('/'))
+            )
+        except HTTPError as exc:
+            # Catch the error of trying to browse a file that does not exist,
+            # separating it from page not found errors.
+            # if response is JSON, we assume it comes from upload-rest-api
+            is_json = exc.response.headers["content-type"] == (
+                "application/json")
+            if exc.response.status_code == 404 and is_json:
+                raise PreIngestFileNotFoundError(exc.response.json()["error"])
+            else:
+                raise
 
         return response.json()
 

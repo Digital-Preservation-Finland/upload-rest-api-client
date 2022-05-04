@@ -250,12 +250,11 @@ def test_browsing_nonexistent_file(requests_mock, capsys):
         status_code=404
     )
 
-    with pytest.raises(SystemExit):
-        upload_rest_api_client.client.main(
-            ['browse', '--project', project, path]
-        )
-        captured = capsys.readouterr()
-        assert "File not found" in captured.out
+    upload_rest_api_client.client.main(
+        ['browse', '--project', project, path]
+    )
+    captured = capsys.readouterr()
+    assert "File not found\n" == captured.out
 
 
 @pytest.mark.usefixtures("mock_configuration")
