@@ -51,6 +51,13 @@ class PreIngestFileNotFoundError(Exception):
     pass
 
 
+class TaskError(Exception):
+    """Exception raised when a task in pre-ingest file storage fails."""
+    def __init__(self, task_id, data):
+        self.task_id = task_id
+        self.data = data
+
+
 class PreIngestFileStorage():
     """Pre-ingest file storage client."""
 
@@ -144,6 +151,14 @@ class PreIngestFileStorage():
             print('.', end='', flush=True)
             response = self.session.get(polling_url)
             status = response.json()['status']
+
+        if status == "error":
+            # Task with an error is still a succesful request, meaning
+            # that raise_for_status() does not pick it up. Raise custom
+            # error for these situations.
+            task_id = polling_url.strip("/").split("/")[-1]
+            data = response.json()
+            raise TaskError(task_id, data)
 
         return response
 

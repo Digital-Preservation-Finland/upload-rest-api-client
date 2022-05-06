@@ -557,3 +557,48 @@ def test_delete(requests_mock, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "Deleted '/test_path.txt' and all associated metadata.\n")
+
+
+@pytest.mark.usefixtures('mock_configuration')
+def test_delete_task_fail(requests_mock, capsys, monkeypatch):
+    """Test failing backend task when using delete command.
+
+    :param requests_mock: HTTP request mocker
+    :param capsys: captured command output
+    """
+    # Skip sleeping when polling the task
+    monkeypatch.setattr(
+        "upload_rest_api_client.pre_ingest_file_storage.sleep",
+        lambda _: None
+    )
+
+    project = "test_project"
+    path = "test_path"
+    polling_url = f"{API_URL}/tasks/polling_url_id"
+
+    response = {
+        "file_path": "/test_path",
+        "message": "Deleting metadata",
+        "polling_url": polling_url,
+        "status": "pending"
+    }
+
+    requests_mock.delete(
+        f"{API_URL}/files/{project}/{path}",
+        json=response,
+        status_code=202
+    )
+
+    requests_mock.get(
+        polling_url,
+        json={"status": "error", "message": "error message"},
+        status_code=200
+    )
+
+    upload_rest_api_client.client.main(
+        ["delete", "--project", project, f"/{path}"]
+    )
+
+    captured = capsys.readouterr()
+    assert "Error when polling task polling_url_id:" in captured.out
+    assert '"message": "error message"' in captured.out

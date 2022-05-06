@@ -3,7 +3,7 @@
 import pytest
 
 from upload_rest_api_client.pre_ingest_file_storage import (
-    PreIngestFileStorage, PreIngestFileNotFoundError
+    PreIngestFileStorage, PreIngestFileNotFoundError, TaskError
 )
 
 
@@ -161,3 +161,52 @@ def test_delete(requests_mock):
 
     client.delete("test_project", "filepath")
     assert adapter.called
+
+
+def test_failed_delete_task(requests_mock, monkeypatch):
+    """Test that failed pre-ingest file storage delete task raises an error.
+
+    :param requests_mock: HTTP requests mocker
+    """
+    # Skip sleeping when polling the task
+    monkeypatch.setattr(
+        "upload_rest_api_client.pre_ingest_file_storage.sleep",
+        lambda _: None
+    )
+
+    host = "http://localhost"
+    polling_url = f"{host}/polling_url"
+    project = "test_project"
+    path = "test_path"
+
+    requests_mock.delete(
+        f"{host}/v1/files/{project}/{path}",
+        json={
+            "file_path": "/test_path",
+            "message": "Deleting metadata",
+            "polling_url": polling_url,
+            "status": "pending"
+        },
+        status_code=202
+    )
+
+    task_response = {"status": "error", "message": "error message"}
+    requests_mock.get(
+        polling_url,
+        json=task_response,
+        status_code=200
+    )
+
+    client = PreIngestFileStorage(
+        False,
+        {
+            "host": host,
+            "user": "",
+            "password": "",
+            "token": "test_token"
+        }
+    )
+
+    with pytest.raises(TaskError) as error:
+        client.delete(project, path)
+        assert error.response.json() == task_response

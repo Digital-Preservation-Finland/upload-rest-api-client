@@ -12,7 +12,7 @@ from requests.exceptions import HTTPError
 from tabulate import tabulate
 
 from upload_rest_api_client.pre_ingest_file_storage import (
-    PreIngestFileStorage, PreIngestFileNotFoundError
+    PreIngestFileStorage, PreIngestFileNotFoundError, TaskError
 )
 
 
@@ -279,6 +279,9 @@ def main(cli_args=None):
             print(json.dumps(exc.response.json(), indent=4))
             sys.exit(1)
         raise
+    except TaskError as exc:
+        print(f"Error when polling task {exc.task_id}:")
+        print(json.dumps(exc.data, indent=4))
 
 
 if __name__ == "__main__":
