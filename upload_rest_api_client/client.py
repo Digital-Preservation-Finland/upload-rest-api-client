@@ -1,5 +1,4 @@
 """Upload-rest-api-client CLI."""
-from __future__ import print_function
 
 import argparse
 import configparser
