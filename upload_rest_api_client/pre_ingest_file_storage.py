@@ -71,7 +71,10 @@ class PreIngestFileStorage():
 
         self.session = requests.Session()
         self.session.verify = verify
-        self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=5))
+
+        # Do not retry requests to ensure that upload requests are not sent
+        # multiple times.
+        self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=0))
 
         # Automatically run 'raise_for_status' for each response
         def check_status(resp, **_):
