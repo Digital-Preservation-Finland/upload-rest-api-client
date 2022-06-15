@@ -2,6 +2,7 @@
 
 import pytest
 
+from upload_rest_api_client import __version__
 from upload_rest_api_client.pre_ingest_file_storage import (
     PreIngestFileStorage, PreIngestFileNotFoundError, TaskError
 )
@@ -210,3 +211,23 @@ def test_failed_delete_task(requests_mock, monkeypatch):
     with pytest.raises(TaskError) as error:
         client.delete(project, path)
         assert error.response.json() == task_response
+
+
+def test_user_agent_header():
+    """Test that requests have User-Agent header set with client version
+    details.
+    """
+    client = PreIngestFileStorage(
+        False,
+        {
+            "host": "http://localhost",
+            "user": "",
+            "password": "",
+            "token": "test_token"
+        }
+    )
+
+    assert "User-Agent" in client.session.headers.keys()
+
+    user_agent = client.session.headers["User-Agent"]
+    assert f"upload-rest-api-client/{__version__}" in user_agent

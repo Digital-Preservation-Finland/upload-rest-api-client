@@ -12,6 +12,8 @@ from requests.exceptions import HTTPError
 import urllib3
 from requests.auth import HTTPBasicAuth
 
+from upload_rest_api_client import __version__
+
 
 def _md5_digest(fpath):
     """Return md5 digest of file fpath.
@@ -75,6 +77,12 @@ class PreIngestFileStorage():
         # Do not retry requests to ensure that upload requests are not sent
         # multiple times.
         self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=0))
+
+        self.session.headers["User-Agent"] = (
+            f"upload-rest-api-client/{__version__} "
+            f"(github.com/Digital-Preservation-Finland/"
+            f"upload-rest-api-client)"
+        )
 
         # Automatically run 'raise_for_status' for each response
         def check_status(resp, **_):
