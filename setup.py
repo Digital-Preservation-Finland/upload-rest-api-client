@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-from version import get_version
-
 
 def main():
     """Install upload-rest-api"""
@@ -9,7 +7,8 @@ def main():
         name='upload-rest-api-client',
         packages=find_packages(exclude=['tests', 'tests.*']),
         include_package_data=True,
-        version=get_version(),
+        setup_requires=["setuptools-scm"],
+        use_scm_version=True,
         install_requires=[
             "requests",
             "argcomplete",
