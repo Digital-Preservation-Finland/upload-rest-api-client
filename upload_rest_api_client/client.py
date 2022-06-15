@@ -10,6 +10,7 @@ import argcomplete
 from requests.exceptions import HTTPError
 from tabulate import tabulate
 
+from upload_rest_api_client import __version__
 from upload_rest_api_client.pre_ingest_file_storage import (
     PreIngestFileStorage, PreIngestFileNotFoundError, TaskError
 )
@@ -80,6 +81,10 @@ def _parse_args(cli_args):
             "Path to the configuration file. Configuration file should "
             "include host and token in section [upload]."
         )
+    )
+    parser.add_argument(
+        "-V", "--version", action="version", version=__version__,
+        help="show client version and exit"
     )
     parser.set_defaults(func=None)
     subparsers = parser.add_subparsers(title="command")

@@ -5,6 +5,7 @@ import tarfile
 import pytest
 
 import upload_rest_api_client.client
+from upload_rest_api_client import __version__
 
 API_URL = 'http://localhost/v1'
 
@@ -602,3 +603,16 @@ def test_delete_task_fail(requests_mock, capsys, monkeypatch):
     captured = capsys.readouterr()
     assert "Error when polling task polling_url_id:" in captured.out
     assert '"message": "error message"' in captured.out
+
+
+def test_version(capsys):
+    """Test showing the version of the client.
+
+    :param capsys: captured command output
+    """
+    with pytest.raises(SystemExit):
+        upload_rest_api_client.client.main(
+            ["--version"]
+        )
+    captured = capsys.readouterr()
+    assert captured.out == f"{__version__}\n"
