@@ -40,8 +40,9 @@ def _get_project_name(args, client):
     """Return the project name from command-line arguments or the config
     object.
 
-    If no project is provided as a CLI parameter, check for `default_project`
-    in configuration file instead. If none are provided, print a warning.
+    If no project is provided as a CLI parameter, check for
+    `default_project` in configuration file instead. If none are
+    provided, print a warning.
 
     :param args: command line arguments
     :param client: pre-ingest file storage client
@@ -160,7 +161,7 @@ def _parse_args(cli_args):
     return args
 
 
-def _list_projects(client, args):
+def _list_projects(client, _args):
     """List projects accessible to the user using client.
 
     :param client: Pre-ingest file storage client
@@ -216,7 +217,7 @@ def _upload(client, args):
     project = _get_project_name(args=args, client=client)
 
     # Ensure that target directory path starts with slash
-    target = "/{}".format(args.target.strip('/'))
+    target = f"/{args.target.strip('/')}"
 
     # Upload archive
     client.upload_archive(
@@ -243,7 +244,7 @@ def _upload(client, args):
     # being included in a dataset.
     message = f"Generated metadata for directory: {target}"
     if target != "/":
-        message += " (identifier: {})".format(directory['identifier'])
+        message += f" (identifier: {directory['identifier']})"
     print(message)
 
     if directory['directories']:

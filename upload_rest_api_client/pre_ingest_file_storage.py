@@ -8,9 +8,9 @@ import zipfile
 from time import sleep
 
 import requests
+from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 import urllib3
-from requests.auth import HTTPBasicAuth
 
 from upload_rest_api_client import __version__
 
@@ -34,8 +34,9 @@ class HTTPBearerAuth(requests.auth.AuthBase):
     """
     Authorization class for Requests that implements Bearer authorization.
 
-    This is used instead of changing headers directly to prevent requests
-    from using the `.netrc` file if that is found on the system.
+    This is used instead of changing headers directly to prevent
+    requests from using the `.netrc` file if that is found on the
+    system.
     """
     def __init__(self, token):
         self.token = token
@@ -74,8 +75,8 @@ class PreIngestFileStorage():
         self.session = requests.Session()
         self.session.verify = verify
 
-        # Do not retry requests to ensure that upload requests are not sent
-        # multiple times.
+        # Do not retry requests to ensure that upload requests are not
+        # sent multiple times.
         self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=0))
 
         self.session.headers["User-Agent"] = (
@@ -86,7 +87,7 @@ class PreIngestFileStorage():
 
         # Automatically run 'raise_for_status' for each response
         def check_status(resp, **_):
-            """Check status for each response"""
+            """Check status for each response."""
             resp.raise_for_status()
         self.session.hooks["response"] = [check_status]
 
@@ -122,7 +123,7 @@ class PreIngestFileStorage():
             )
 
     def get_projects(self):
-        """Retrieve dictionary of projects accessible to the user"""
+        """Retrieve dictionary of projects accessible to the user."""
         response = self.session.get(f"{self.users_api}/projects")
         return response.json()["projects"]
 
@@ -137,18 +138,19 @@ class PreIngestFileStorage():
         """
         try:
             response = self.session.get(
-                "{}/{}/{}".format(self.files_api, project, path.strip('/'))
+                f"{self.files_api}/{project}/{path.strip('/')}"
             )
         except HTTPError as exc:
-            # Catch the error of trying to browse a file that does not exist,
-            # separating it from page not found errors.
-            # if response is JSON, we assume it comes from upload-rest-api
+            # Catch the error of trying to browse a file that does not
+            # exist, separating it from page not found errors. If
+            # response is JSON, we assume it comes from upload-rest-api
             is_json = exc.response.headers["content-type"] == (
                 "application/json")
             if exc.response.status_code == 404 and is_json:
-                raise PreIngestFileNotFoundError(exc.response.json()["error"])
-            else:
-                raise
+                raise PreIngestFileNotFoundError(
+                    exc.response.json()["error"]
+                ) from exc
+            raise
 
         return response.json()
 
@@ -179,7 +181,7 @@ class PreIngestFileStorage():
             f"{self.files_api}/{project}",
             params={"all": "true"}
         ).json()
-        all_file_paths = list()
+        all_file_paths = []
         for directory, files in directory_tree.items():
             for file_ in files:
                 all_file_paths.append(os.path.join(directory, file_))
@@ -189,12 +191,10 @@ class PreIngestFileStorage():
                                 if path.startswith(target_directory)]
 
         # Get file metadata for files in directory (and subdirectories)
-        files = list()
+        files = []
         for file_path in directory_file_paths:
             file_ = self.session.get(
-                "{}/{}/{}".format(
-                    self.files_api, project, file_path.strip('/')
-                )
+                f"{self.files_api}/{project}/{file_path.strip('/')}"
             ).json()
             parent_directory \
                 = self.session.get(
@@ -268,7 +268,8 @@ class PreIngestFileStorage():
         Deletes also the metadata of the files.
 
         :param project: target project ID
-        :param path: path in pre-ingest file storage to the file or directory
+        :param path: path in pre-ingest file storage to the file or
+                     directory
                      that is to be deleted.
         """
         path = path.strip("/")
@@ -276,7 +277,7 @@ class PreIngestFileStorage():
             f"{self.files_api}/{project}/{path}"
         )
 
-        # When deleting directories the metadata of the files is deleted in a
-        # pollable task. Wait for the task to finish.
+        # When deleting directories the metadata of the files is deleted
+        # in a pollable task. Wait for the task to finish.
         if response.status_code == 202:
             self._wait_response(response)
