@@ -5,7 +5,6 @@ import os
 import tarfile
 import warnings
 import zipfile
-from time import sleep
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -38,6 +37,7 @@ class HTTPBearerAuth(requests.auth.AuthBase):
     requests from using the `.netrc` file if that is found on the
     system.
     """
+
     def __init__(self, token):
         self.token = token
 
@@ -51,13 +51,6 @@ class PreIngestFileNotFoundError(Exception):
     file storage.
     """
     pass
-
-
-class TaskError(Exception):
-    """Exception raised when a task in pre-ingest file storage fails."""
-    def __init__(self, task_id, data):
-        self.task_id = task_id
-        self.data = data
 
 
 class PreIngestFileStorage():
@@ -95,6 +88,7 @@ class PreIngestFileStorage():
         self.metadata_api = f"{host}/v1/metadata"
         self.files_api = f"{host}/v1/files"
         self.users_api = f"{host}/v1/users"
+        self.tasks_api = f"{host}/v1/tasks"
 
         if config.get("default_project"):
             self.default_project = config["default_project"]
@@ -154,25 +148,15 @@ class PreIngestFileStorage():
 
         return response.json()
 
-    def _wait_response(self, response):
-        status = "pending"
-        polling_url = response.json()["polling_url"]
+    def task_status(self, task_id):
+        """Check task status.
 
-        while status == "pending":
-            sleep(5)
-            print('.', end='', flush=True)
-            response = self.session.get(polling_url)
-            status = response.json()['status']
-
-        if status == "error":
-            # Task with an error is still a succesful request, meaning
-            # that raise_for_status() does not pick it up. Raise custom
-            # error for these situations.
-            task_id = polling_url.strip("/").split("/")[-1]
-            data = response.json()
-            raise TaskError(task_id, data)
-
-        return response
+        :param task_id: task identifier
+        """
+        response = self.session.get(f"{self.tasks_api}/{task_id}")
+        task = response.json()
+        task['identifier'] = task_id
+        return task
 
     def directory_files(self, project, target_directory):
         """Fetch file metadata for all files in directory."""
@@ -236,31 +220,9 @@ class PreIngestFileStorage():
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         if response.status_code == 202:
-            response = self._wait_response(response)
-
-    def generate_directory_metadata(self, project, target):
-        """Generate metadata for directory.
-
-        :param project: target project ID
-        :param target: target directory path in pre-ingest file storage
-        """
-        target = target.strip('/')
-
-        # Character "*" is added to url to enable metadata
-        # generation for root directory. See TPASPKT-719 for more
-        # information.
-        metadata_target = "*" if target == "" else target
-
-        response = self.session.post(
-            f"{self.metadata_api}/{project}/{metadata_target}"
-        )
-
-        if response.status_code == 202:
-            response = self._wait_response(response)
-
-        return self.session.get(
-            f"{self.files_api}/{project}/{target.strip('/')}"
-        ).json()
+            task_id = response.json()['polling_url'].strip("/").split("/")[-1]
+            return {'status': 'pending', 'identifier': task_id}
+        return {'status': 'done', 'identifier': None}
 
     def delete(self, project, path):
         """Delete a file or directory from pre-ingest file storage.
@@ -280,4 +242,6 @@ class PreIngestFileStorage():
         # When deleting directories the metadata of the files is deleted
         # in a pollable task. Wait for the task to finish.
         if response.status_code == 202:
-            self._wait_response(response)
+            task_id = response.json()['polling_url'].strip("/").split("/")[-1]
+            return {'status': 'pending', 'identifier': task_id}
+        return {'status': 'done', 'identifier': None}
