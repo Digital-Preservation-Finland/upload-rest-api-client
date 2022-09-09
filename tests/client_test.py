@@ -569,7 +569,7 @@ def test_delete_task_fail(requests_mock, capsys, monkeypatch):
     """
     # Skip sleeping when polling the task
     monkeypatch.setattr(
-        "upload_rest_api_client.client.sleep",
+        "upload_rest_api_client.pre_ingest_file_storage.sleep",
         lambda _: None
     )
 

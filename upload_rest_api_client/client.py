@@ -5,7 +5,6 @@ import configparser
 import json
 import os
 import sys
-from time import sleep
 
 import argcomplete
 from requests.exceptions import HTTPError
@@ -13,16 +12,8 @@ from tabulate import tabulate
 
 from upload_rest_api_client import __version__
 from upload_rest_api_client.pre_ingest_file_storage import (
-    PreIngestFileStorage, PreIngestFileNotFoundError
+    PreIngestFileStorage, PreIngestFileNotFoundError, TaskError
 )
-
-
-class TaskError(Exception):
-    """Exception raised when a task in pre-ingest file storage fails."""
-
-    def __init__(self, task):
-        """Initialize TaskError."""
-        self.task = task
 
 
 def _parse_conf_file(conf):
@@ -68,21 +59,6 @@ def _get_project_name(args, client):
         "or by using the `upload/default_project` field in the configuration "
         "file."
     )
-
-
-def _wait_response(client, task):
-    while task['status'] == "pending":
-        sleep(5)
-        print('.', end='', flush=True)
-        task = client.task_status(task['identifier'])
-
-    if task['status'] == "error":
-        # Task with an error is still a succesful request, meaning
-        # that raise_for_status() does not pick it up. Raise custom
-        # error for these situations.
-        raise TaskError(task)
-
-    return task
 
 
 def _parse_args(cli_args):
@@ -244,15 +220,18 @@ def _upload(client, args):
     target = f"/{args.target.strip('/')}"
 
     # Upload archive
-    task = client.upload_archive(
+    client.upload_archive(
         project=project,
         source=args.source,
         target=target
     )
     print(f"Uploaded '{args.source}'")
 
-    # Wait until upload has been processed
-    _wait_response(client, task)
+    # Generate metadata
+    directory = client.generate_directory_metadata(
+        project=project,
+        target=target
+    )
 
     if args.output:
         files = client.directory_files(project, target)
@@ -263,7 +242,6 @@ def _upload(client, args):
     # Print path and identifier of uploaded directory. Root directory
     # identifier is NOT printed to avoid root directory accidentally
     # being included in a dataset.
-    directory = client.browse(project, target)
     message = f"Generated metadata for directory: {target}"
     if target != "/":
         message += f" (identifier: {directory['identifier']})"
@@ -282,8 +260,7 @@ def _upload(client, args):
 def _delete(client, args):
     """Delete resources and their metadata from pre-ingest file storage."""
     project = _get_project_name(args=args, client=client)
-    task = client.delete(project, args.path)
-    _wait_response(client, task)
+    client.delete(project, args.path)
     print(f"Deleted '{args.path}' and all associated metadata.")
 
 
@@ -308,8 +285,8 @@ def main(cli_args=None):
             sys.exit(1)
         raise
     except TaskError as exc:
-        print(f"Error when polling task {exc.task['identifier']}:")
-        print(json.dumps(exc.task, indent=4))
+        print(f"Error when polling task {exc.task_id}:")
+        print(json.dumps(exc.data, indent=4))
 
 
 if __name__ == "__main__":
