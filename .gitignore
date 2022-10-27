@@ -8,3 +8,5 @@ __pycache__
 *.egg-info
 junit.xml
 .tox
+build/
+.eggs/
