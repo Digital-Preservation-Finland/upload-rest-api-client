@@ -2,14 +2,15 @@
 
 import hashlib
 import os
+import secrets
 import tarfile
 import warnings
 import zipfile
 
 import requests
+import urllib3
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
-import urllib3
 
 from upload_rest_api_client import __version__
 
@@ -27,6 +28,16 @@ def _md5_digest(fpath):
             md5_hash.update(chunk)
 
     return md5_hash.hexdigest()
+
+
+def _random_id():
+    """Return random identifier for use in non-idempotent HTTP requests.
+
+    This is done to help with the investigation of duplicate requests.
+
+    :returns: Random id as string
+    """
+    return secrets.token_urlsafe(8)
 
 
 class HTTPBearerAuth(requests.auth.AuthBase):
@@ -68,9 +79,7 @@ class PreIngestFileStorage():
         self.session = requests.Session()
         self.session.verify = verify
 
-        # Do not retry requests to ensure that upload requests are not
-        # sent multiple times.
-        self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=0))
+        self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=5))
 
         self.session.headers["User-Agent"] = (
             f"upload-rest-api-client/{__version__} "
@@ -212,7 +221,11 @@ class PreIngestFileStorage():
         with open(source, "rb") as upload_file:
             response = self.session.post(
                 f"{self.archives_api}/{project}",
-                params={'dir': target.strip('/'), 'md5': _md5_digest(source)},
+                params={
+                    'dir': target.strip('/'),
+                    'md5': _md5_digest(source),
+                    '_request_id': _random_id()
+                },
                 data=upload_file,
             )
 
@@ -236,7 +249,8 @@ class PreIngestFileStorage():
         """
         path = path.strip("/")
         response = self.session.delete(
-            f"{self.files_api}/{project}/{path}"
+            f"{self.files_api}/{project}/{path}",
+            params={"_request_id": _random_id()}
         )
 
         # When deleting directories the metadata of the files is deleted
