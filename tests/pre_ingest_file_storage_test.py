@@ -8,6 +8,18 @@ from upload_rest_api_client.pre_ingest_file_storage import (
 )
 
 
+def _filter_qs(qs):
+    """Filter a query parameter dict to remove the session and request
+    identifiers
+    """
+    qs = qs.copy()
+
+    del qs["_request_id"]
+    del qs["_session_id"]
+
+    return qs
+
+
 @pytest.mark.parametrize(
     ('target', 'result'),
     [
@@ -50,7 +62,7 @@ def test_directory_files(requests_mock, target, result):
     requests_mock.get(
         'http://localhost/v1/files/test_project?all=true',
         json={"/": ["file1"], "/directory1": ["file2"]},
-        complete_qs=True
+        additional_matcher=lambda req: _filter_qs(req.qs) == {"all": ["true"]}
     )
 
     requests_mock.get(
@@ -60,7 +72,7 @@ def test_directory_files(requests_mock, target, result):
             "files": ["file1"],
             "identifier": "foo1"
         },
-        complete_qs=True
+        additional_matcher=lambda req: _filter_qs(req.qs) == {}
     )
 
     requests_mock.get('http://localhost/v1/files/test_project/directory1',

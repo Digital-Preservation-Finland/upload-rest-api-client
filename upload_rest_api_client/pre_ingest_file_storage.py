@@ -31,13 +31,32 @@ def _md5_digest(fpath):
 
 
 def _random_id():
-    """Return random identifier for use in non-idempotent HTTP requests.
-
-    This is done to help with the investigation of duplicate requests.
+    """Return random identifier for use to identify requests.
 
     :returns: Random id as string
     """
     return secrets.token_urlsafe(8)
+
+
+class PreIngestSession(requests.Session):
+    """
+    Custom `requests.Session` instance that includes a request and session
+    identifier with each request to help with debugging issues.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._session_id = _random_id()
+
+    def request(self, *args, **kwargs):
+        params = kwargs.get("params", {})
+
+        params["_session_id"] = self._session_id
+        params["_request_id"] = _random_id()
+
+        kwargs["params"] = params
+
+        return super().request(*args, **kwargs)
 
 
 class HTTPBearerAuth(requests.auth.AuthBase):
@@ -76,7 +95,7 @@ class PreIngestFileStorage():
         """
         host = config["host"]
 
-        self.session = requests.Session()
+        self.session = PreIngestSession()
         self.session.verify = verify
 
         self.session.mount(host, requests.adapters.HTTPAdapter(max_retries=5))
@@ -223,8 +242,7 @@ class PreIngestFileStorage():
                 f"{self.archives_api}/{project}",
                 params={
                     'dir': target.strip('/'),
-                    'md5': _md5_digest(source),
-                    '_request_id': _random_id()
+                    'md5': _md5_digest(source)
                 },
                 data=upload_file,
             )
@@ -248,10 +266,7 @@ class PreIngestFileStorage():
                      that is to be deleted.
         """
         path = path.strip("/")
-        response = self.session.delete(
-            f"{self.files_api}/{project}/{path}",
-            params={"_request_id": _random_id()}
-        )
+        response = self.session.delete(f"{self.files_api}/{project}/{path}")
 
         # When deleting directories the metadata of the files is deleted
         # in a pollable task. Wait for the task to finish.
